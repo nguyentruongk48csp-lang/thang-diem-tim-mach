@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Thang điểm">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4f6f8">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<title>Thang điểm tim mạch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lexend:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a menu of four score tiles; choosing one opens its panel below — inputs left, live result right, then a worked "how it is calculated" section using the patient's own numbers. */
+:root{
+  --bg:#f4f6f8; --surface:#ffffff; --ink:#15212c; --muted:#5a6977; --line:#dbe2e9; --tint:#eef2f6;
+  --accent:#0f5e8c;
+  --t-rf:#2c5fa8; --t-s2:#127a6a; --t-op:#7a3f8f; --t-dm:#a5551a; --t-eg:#0a7f91; --t-ch:#b8323f; --t-hb:#a33d74; --t-gr:#6e5d1c; --t-cp:#5f7314; --t-gv:#4a5fb0; --t-ps:#9a4429;
+  --ok:#2f9a57; --warn:#d99a14; --bad:#d4483b; --crit:#9e1f2b;
+  --font-display:"Lexend","Be Vietnam Pro",system-ui,sans-serif;
+  --font-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f151b; --surface:#16202a; --ink:#e3eaf1; --muted:#9aaaba; --line:#2a3846; --tint:#1b2834;
+    --accent:#5fb0e4; --t-rf:#7aa7ee; --t-s2:#4fc3ad; --t-op:#c58ad8; --t-dm:#e39a5e; --t-eg:#52c4d4; --t-ch:#f07a84; --t-hb:#e58bbb; --t-gr:#d4c06a; --t-cp:#bfd16a; --t-gv:#9aacf0; --t-ps:#e8a183;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#16202a; --ink:#e3eaf1; --muted:#9aaaba; --line:#2a3846; --tint:#1b2834;
+  --accent:#5fb0e4; --t-rf:#7aa7ee; --t-s2:#4fc3ad; --t-op:#c58ad8; --t-dm:#e39a5e; --t-eg:#52c4d4; --t-ch:#f07a84; --t-hb:#e58bbb; --t-gr:#d4c06a; --t-cp:#bfd16a; --t-gv:#9aacf0; --t-ps:#e8a183;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15.5px;line-height:1.55}
+h1,h2,h3,h4{font-family:var(--font-display);line-height:1.25;margin:0;text-wrap:balance}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 18px}
+header{padding:30px 0 14px}
+.eyebrow{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+header h1{font-size:clamp(24px,3.6vw,34px);margin:6px 0 6px}
+header p{margin:0;color:var(--muted);max-width:70ch}
+
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 8px}
+@media (max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:460px){.tiles{grid-template-columns:1fr}}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:14px 16px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--tc);transition:transform .12s, box-shadow .12s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgb(0 0 0 / .07)}
+.tile:focus-visible{outline:2px solid var(--tc);outline-offset:2px}
+.tile[aria-pressed="true"]{background:color-mix(in srgb,var(--tc) 9%,var(--surface));border-color:var(--tc)}
+.tile .nm{font-family:var(--font-display);font-weight:700;font-size:19px;color:var(--tc)}
+.tile .ds{font-size:13.5px;color:var(--muted)}
+.tile .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:4px}
+.pill{font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--tint);color:var(--muted)}
+.t-rf{--tc:var(--t-rf)} .t-s2{--tc:var(--t-s2)} .t-op{--tc:var(--t-op)} .t-dm{--tc:var(--t-dm)}
+.t-eg{--tc:var(--t-eg)} .t-ch{--tc:var(--t-ch)} .t-hb{--tc:var(--t-hb)} .t-gr{--tc:var(--t-gr)}
+.t-cp{--tc:var(--t-cp)} .t-gv{--tc:var(--t-gv)} .t-ps{--tc:var(--t-ps)}
+.tilebar{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
+.sortbtn{all:unset;cursor:pointer;font-size:13.5px;font-weight:600;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.sortbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.sortbtn.ghost{color:var(--muted)}
+.sortbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sorthelp{margin:8px 0 0 auto;text-align:right;font-size:13px;color:var(--muted)}
+.sorthelp[hidden]{display:none}
+.tw{position:relative;display:flex;border-radius:12px}
+.tw>.tile{flex:1}
+.tools{display:none;position:absolute;top:10px;right:8px;gap:4px;align-items:center}
+.tools button{all:unset;cursor:pointer;width:28px;height:28px;display:grid;place-items:center;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:12px}
+.tools button:disabled{opacity:.3;cursor:default}
+.tools button:focus-visible{outline:2px solid var(--accent)}
+.ord{font-size:12px;font-weight:700;color:var(--muted);margin-right:2px;font-variant-numeric:tabular-nums}
+.tiles.editing .tools{display:flex}
+.tiles.editing .tw{cursor:grab;touch-action:none;outline:2px dashed var(--line);outline-offset:2px;user-select:none;-webkit-user-select:none}
+.tiles.editing .tile{pointer-events:none}
+.tiles.editing .tile .nm{padding-right:96px}
+.tw.dragging{opacity:.55;cursor:grabbing}
+@media (prefers-reduced-motion:reduce){.tile{transition:none}.tile:hover{transform:none}}
+.result .big .unit{font-size:16px;font-weight:600;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media (max-width:760px){.cards{grid-template-columns:1fr}}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface);border-left:4px solid var(--tc)}
+.card h4{font-family:var(--font-display);font-size:15px;margin:0 0 4px;display:flex;gap:8px;align-items:center}
+.card p{margin:0;font-size:14px}
+.pts{display:inline-block;font-size:11.5px;font-weight:700;padding:0 6px;border-radius:5px;background:var(--tint);color:var(--tc);margin-left:2px}
+.mod{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:5px;background:color-mix(in srgb,var(--warn) 22%,var(--surface));color:var(--ink)}
+.eg-tab{margin-top:12px;font-size:14px}
+.eg-tab td{padding:5px 6px}
+.eg-tab td.u{font-size:12px;color:var(--muted)}
+.gtag{display:inline-block;font-size:11.5px;font-weight:700;color:#fff;border-radius:5px;padding:0 6px}
+.gtab td,.gtab th{font-size:12px;padding:3px 5px;text-align:center;white-space:nowrap}
+tr.on td{background:color-mix(in srgb,var(--tc) 10%,var(--surface));font-weight:600}
+
+.back{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--tc);padding:6px 12px 6px 8px;border:1px solid var(--line);border-radius:999px;margin-bottom:14px;background:var(--surface)}
+.back:hover{background:color-mix(in srgb,var(--tc) 8%,var(--surface))}
+.back:focus-visible{outline:2px solid var(--tc);outline-offset:2px}
+#home[hidden]{display:none}
+.topbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;margin-bottom:14px}
+.topbar .back{margin-bottom:0}
+.reset{color:var(--muted)}
+.result .empty{color:var(--muted);font-size:14.5px;margin-top:4px}
+
+/* panel */
+.panel{margin:22px 0 30px;background:var(--surface);border:1px solid var(--line);border-radius:14px;border-top:5px solid var(--tc);padding:20px 22px}
+.panel[hidden]{display:none}
+.phead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:6px}
+.phead h2{font-size:24px;color:var(--tc)}
+.phead p{margin:0;color:var(--muted);font-size:14px;flex-basis:100%}
+.scope{font-size:13.5px;background:var(--tint);border-radius:8px;padding:8px 12px;margin:10px 0 16px}
+.scope b{color:var(--ink)}
+.grid{display:grid;grid-template-columns:minmax(280px,1fr) 1.1fr;gap:22px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+
+fieldset{border:1px solid var(--line);border-radius:10px;padding:8px 14px 12px;margin:0 0 10px}
+legend{font-weight:600;font-size:13.5px;padding:0 6px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.opt{display:flex;gap:7px;align-items:flex-start;font-size:14.5px;cursor:pointer;margin:3px 0}
+.opt input{margin-top:4px;accent-color:var(--tc)}
+.fld{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:14.5px;margin:5px 0}
+.fld input[type=number], select{font:inherit;font-size:14.5px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}
+.fld input[type=number]{width:110px;font-variant-numeric:tabular-nums}
+.fld .u{font-size:12.5px;color:var(--muted)}
+select{width:100%}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;padding:3px 10px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--tc);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--tc)}
+.mini{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--tc);text-decoration:underline}
+.helper{background:var(--tint);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:13.5px}
+.helper[hidden]{display:none}
+
+.result{border-radius:12px;padding:16px 18px;background:var(--tint);border:1px solid var(--line);border-left:6px solid var(--rc,var(--line))}
+.result .lbl{font-size:13px;color:var(--muted)}
+.result .big{font-family:var(--font-display);font-size:50px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.result .cat{display:inline-block;margin:6px 0 8px;padding:2px 10px;border-radius:999px;font-weight:700;font-size:13px;color:#fff;background:var(--rc,var(--muted))}
+.result .msg{font-size:14.5px}
+.result .err{color:var(--bad);font-weight:600}
+.scale{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:12px 0 4px;position:relative}
+.scale span{flex:1}
+.scalelbl{position:relative;height:16px;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+h3.sec{font-size:17px;margin:24px 0 10px;padding-top:16px;border-top:1px solid var(--line);color:var(--tc)}
+ol.steps{margin:0;padding-left:22px}
+ol.steps>li{margin:0 0 12px}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;background:var(--tint);border-radius:8px;padding:8px 12px;margin:6px 0;overflow-x:auto;white-space:pre}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:5px 9px;text-align:left;vertical-align:top}
+th{font-size:12.5px;font-weight:600;color:var(--muted);background:var(--tint)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+.note{font-size:13.5px;color:var(--muted);margin:8px 0 0}
+.warnbox{border-left:4px solid var(--warn);background:var(--tint);padding:8px 12px;border-radius:0 8px 8px 0;font-size:13.5px;margin:10px 0}
+
+/* rf-cl grid */
+.rfgrid td,.rfgrid th{text-align:center;border:none;padding:3px}
+.rfgrid th.g{border-bottom:1px solid var(--line)}
+.rfgrid th.a{text-align:left;white-space:nowrap}
+.dot{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.dot.hit{outline:3px solid var(--ink);outline-offset:1px}
+.k1{background:#4f9be0;color:#fff}.k2{background:#33a86b;color:#fff}.k3{background:#e8c21c;color:#2a2000}
+footer[hidden]{display:none}
+footer{padding:10px 0 40px;font-size:13px;color:var(--muted)}
+footer p{margin:4px 0;max-width:95ch}
+</style>
+</head>
+<body>
+<header class="wrap" id="home">
+  <h1>Thang điểm tim mạch</h1>
+  <div class="tilebar"><button type="button" class="sortbtn" id="sort-btn" aria-pressed="false">⇅ Sắp xếp</button></div>
+  <p class="sorthelp" id="sort-help" hidden>Kéo thả các ô, hoặc dùng ▲ ▼, để đổi thứ tự. Bấm “Xong” khi hoàn tất. Thứ tự được lưu trên trình duyệt này.</p>
+  <nav class="tiles" id="tiles" aria-label="Chọn thang điểm">
+    <div class="tw t-rf" data-k="rf-cl">
+      <button class="tile" type="button" data-k="rf-cl">
+        <span class="nm">RF-CL</span>
+        <span class="ds">Khả năng mắc bệnh vành tắc nghẽn ở người có triệu chứng</span>
+        <span class="meta"><span class="pill">ESC 2024 CCS</span><span class="pill">30–80 tuổi</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa RF-CL lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa RF-CL ra sau">▼</button></span>
+    </div>
+    <div class="tw t-s2" data-k="score2">
+      <button class="tile" type="button" data-k="score2">
+        <span class="nm">SCORE2</span>
+        <span class="ds">Nguy cơ biến cố tim mạch 10 năm, người khỏe mạnh</span>
+        <span class="meta"><span class="pill">ESC 2021</span><span class="pill">40–69 tuổi</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa SCORE2 lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa SCORE2 ra sau">▼</button></span>
+    </div>
+    <div class="tw t-op" data-k="score2-op">
+      <button class="tile" type="button" data-k="score2-op">
+        <span class="nm">SCORE2-OP</span>
+        <span class="ds">Nguy cơ biến cố tim mạch 10 năm, người cao tuổi</span>
+        <span class="meta"><span class="pill">ESC 2021</span><span class="pill">≥70 tuổi</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa SCORE2-OP lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa SCORE2-OP ra sau">▼</button></span>
+    </div>
+    <div class="tw t-dm" data-k="score2-diabetes">
+      <button class="tile" type="button" data-k="score2-diabetes">
+        <span class="nm">SCORE2-Diabetes</span>
+        <span class="ds">Nguy cơ biến cố tim mạch 10 năm, đái tháo đường típ 2</span>
+        <span class="meta"><span class="pill">ESC 2023</span><span class="pill">40–69 tuổi</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa SCORE2-Diabetes lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa SCORE2-Diabetes ra sau">▼</button></span>
+    </div>
+    <div class="tw t-eg" data-k="egfr">
+      <button class="tile" type="button" data-k="egfr">
+        <span class="nm">Mức lọc cầu thận</span>
+        <span class="ds">Cockcroft–Gault, CKD-EPI 2021, MDRD</span>
+        <span class="meta"><span class="pill">KDIGO</span><span class="pill">Chỉnh liều thuốc</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa Mức lọc cầu thận lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa Mức lọc cầu thận ra sau">▼</button></span>
+    </div>
+    <div class="tw t-ch" data-k="cha2ds2-va">
+      <button class="tile" type="button" data-k="cha2ds2-va">
+        <span class="nm">CHA₂DS₂-VA</span>
+        <span class="ds">Nguy cơ đột quỵ trong rung nhĩ, chỉ định chống đông</span>
+        <span class="meta"><span class="pill">ESC 2024 AF</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa CHA₂DS₂-VA lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa CHA₂DS₂-VA ra sau">▼</button></span>
+    </div>
+    <div class="tw t-hb" data-k="has-bled">
+      <button class="tile" type="button" data-k="has-bled">
+        <span class="nm">HAS-BLED</span>
+        <span class="ds">Nguy cơ chảy máu khi dùng chống đông</span>
+        <span class="meta"><span class="pill">ESC 2024 AF</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa HAS-BLED lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa HAS-BLED ra sau">▼</button></span>
+    </div>
+    <div class="tw t-gr" data-k="grace">
+      <button class="tile" type="button" data-k="grace">
+        <span class="nm">GRACE</span>
+        <span class="ds">Nguy cơ tử vong trong viện ở hội chứng vành cấp</span>
+        <span class="meta"><span class="pill">ESC 2023 ACS</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa GRACE lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa GRACE ra sau">▼</button></span>
+    </div>
+    <div class="tw t-cp" data-k="child-pugh">
+      <button class="tile" type="button" data-k="child-pugh">
+        <span class="nm">Child-Pugh</span>
+        <span class="ds">Mức độ nặng xơ gan, tiên lượng và lựa chọn DOAC</span>
+        <span class="meta"><span class="pill">Gan</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa Child-Pugh lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa Child-Pugh ra sau">▼</button></span>
+    </div>
+    <div class="tw t-gv" data-k="geneva">
+      <button class="tile" type="button" data-k="geneva">
+        <span class="nm">Geneva</span>
+        <span class="ds">Xác suất lâm sàng thuyên tắc phổi (sửa đổi và đơn giản hoá)</span>
+        <span class="meta"><span class="pill">ESC 2019 PE</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa Geneva lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa Geneva ra sau">▼</button></span>
+    </div>
+    <div class="tw t-ps" data-k="pesi">
+      <button class="tile" type="button" data-k="pesi">
+        <span class="nm">PESI · sPESI</span>
+        <span class="ds">Tiên lượng tử vong 30 ngày và phân tầng nguy cơ thuyên tắc phổi</span>
+        <span class="meta"><span class="pill">ESC 2019 PE</span></span>
+      </button>
+      <span class="tools"><span class="ord" aria-hidden="true"></span><button type="button" data-mv="-1" aria-label="Đưa PESI · sPESI lên trước">▲</button><button type="button" data-mv="1" aria-label="Đưa PESI · sPESI ra sau">▼</button></span>
+    </div>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <!-- ================= RF-CL ================= -->
+  <section class="panel t-rf" id="p-rf-cl" hidden aria-labelledby="h-rf">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-rf">RF-CL</h2><p>Risk Factor-weighted Clinical Likelihood: khả năng lâm sàng mắc bệnh vành tắc nghẽn trước thăm dò</p></div>
+    <div class="scope"><b>Dùng cho:</b> người có triệu chứng nghi hội chứng vành mạn, 30–80 tuổi. Đã loại trừ hội chứng vành cấp. ESC 2024 khuyến cáo Class I (B).</div>
+    <div class="grid">
+      <form id="f-rf" onsubmit="return false">
+        <fieldset><legend>Giới, tuổi</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="rf-sex" id="rf-m" value="M"> Nam</label>
+            <label class="opt"><input type="radio" name="rf-sex" id="rf-w" value="W"> Nữ</label>
+          </div>
+          <label class="fld" for="rf-age">Tuổi <span><input type="number" id="rf-age" min="30" max="80"> <span class="u">năm</span></span></label>
+        </fieldset>
+        <fieldset><legend>Triệu chứng chính</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="rf-sym" id="rf-cp" value="cp"> Đau ngực</label>
+            <label class="opt"><input type="radio" name="rf-sym" id="rf-dy" value="dy"> Khó thở</label>
+          </div>
+          <div id="rf-cpbox">
+            <label class="opt"><input type="checkbox" id="rf-c1"> Tức, bó nghẹt sau xương ức hoặc ở cổ, hàm, vai, tay</label>
+            <label class="opt"><input type="checkbox" id="rf-c2"> Khởi phát khi gắng sức thể lực hoặc cảm xúc</label>
+            <label class="opt"><input type="checkbox" id="rf-c3"> Đỡ khi nghỉ hoặc dùng nitrate trong vòng 5 phút</label>
+          </div>
+        </fieldset>
+        <fieldset><legend>Yếu tố nguy cơ</legend>
+          <label class="opt"><input type="checkbox" id="rf-r1"> Tiền sử gia đình bệnh vành sớm (họ hàng bậc 1: nam &lt;55, nữ &lt;65 tuổi)</label>
+          <label class="opt"><input type="checkbox" id="rf-r2"> Hút thuốc (hiện tại hoặc trước đây)</label>
+          <label class="opt"><input type="checkbox" id="rf-r3"> Rối loạn lipid máu</label>
+          <label class="opt"><input type="checkbox" id="rf-r4"> Tăng huyết áp</label>
+          <label class="opt"><input type="checkbox" id="rf-r5"> Đái tháo đường</label>
+        </fieldset>
+        <fieldset><legend>Hiệu chỉnh lâm sàng (không cộng điểm, chỉ gợi ý nâng/hạ nhóm)</legend>
+          <label class="opt"><input type="checkbox" id="rf-a1"> ECG nghỉ bất thường (sóng Q, biến đổi ST–T)</label>
+          <label class="opt"><input type="checkbox" id="rf-a2"> ECG gắng sức bất thường</label>
+          <label class="opt"><input type="checkbox" id="rf-a3"> Rối loạn chức năng thất trái (nặng hoặc theo vùng)</label>
+          <label class="opt"><input type="checkbox" id="rf-a4"> Loạn nhịp thất</label>
+          <label class="opt"><input type="checkbox" id="rf-a5"> Bệnh động mạch ngoại biên</label>
+          <label class="opt"><input type="checkbox" id="rf-a6"> Vôi hoá mạch vành trên CT ngực có sẵn</label>
+          <label class="fld" for="rf-cacs">Điểm vôi hoá (CACS) nếu đã chụp
+            <select id="rf-cacs" style="width:150px">
+              <option value="">Chưa chụp</option><option value="0">0</option><option value="1">1–99</option><option value="2">100–399</option><option value="3">≥400</option>
+            </select></label>
+        </fieldset>
+      </form>
+      <div>
+        <div class="result" id="r-rf" aria-live="polite"></div>
+      </div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <ol class="steps">
+      <li><b>Điểm triệu chứng (0–3).</b> Đau ngực: mỗi đặc điểm 1 điểm (vị trí/tính chất; khởi phát khi gắng sức; đỡ khi nghỉ hoặc nitrate). Nếu khó thở là triệu chứng chính: tính 2 điểm. Bệnh nhân này: <b id="rf-x-score"></b>.</li>
+      <li><b>Số yếu tố nguy cơ (0–5),</b> gộp thành 3 nhóm 0–1, 2–3, 4–5. Bệnh nhân này: <b id="rf-x-rf"></b>.</li>
+      <li><b>Tra bảng</b> theo giới, nhóm tuổi, nhóm điểm triệu chứng, nhóm yếu tố nguy cơ (ô viền đậm).
+        <div class="tbl" id="rf-grid"></div>
+      </li>
+      <li><b>Phân nhóm:</b> rất thấp ≤5% · thấp &gt;5–15% · vừa &gt;15–50% · cao &gt;50–85% · rất cao &gt;85%. Bảng RF-CL tối đa 45%. Nhóm cao và rất cao chỉ có được sau khi hiệu chỉnh bằng dữ liệu lâm sàng (I C).</li>
+      <li><b>Hiệu chỉnh:</b> dấu hiệu bất thường ở ECG, siêu âm tim, mạch ngoại biên, vôi hoá trên CT làm tăng khả năng. Ở nhóm thấp, CACS giúp phân loại lại (CACS-CL, IIa B): CACS = 0 thường hạ xuống rất thấp. Lưu ý: người trẻ &lt;40 tuổi vẫn có thể có hẹp tắc nghẽn dù CACS = 0.</li>
+    </ol>
+  </section>
+
+  <!-- ================= SCORE2 ================= -->
+  <section class="panel t-s2" id="p-score2" hidden aria-labelledby="h-s2">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-s2">SCORE2</h2><p>Nguy cơ 10 năm bị biến cố tim mạch gây tử vong hoặc không tử vong (NMCT, đột quỵ)</p></div>
+    <div class="scope"><b>Dùng cho:</b> người 40–69 tuổi, có vẻ khỏe mạnh. <b>Không dùng khi:</b> đã có bệnh tim mạch xơ vữa; đái tháo đường (dùng SCORE2-Diabetes); bệnh thận mạn trung bình–nặng; tăng cholesterol máu gia đình; yếu tố nguy cơ đơn lẻ rất cao (cholesterol TP &gt;8 mmol/L, LDL-C &gt;4,9 mmol/L, HA ≥180/110 mmHg).</div>
+    <div class="grid">
+      <form id="f-s2" onsubmit="return false">
+        <fieldset><legend>Thông tin chung</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="s2-sex" id="s2-m" value="M"> Nam</label>
+            <label class="opt"><input type="radio" name="s2-sex" id="s2-w" value="W"> Nữ</label>
+            <label class="opt"><input type="checkbox" id="s2-smk"> Đang hút thuốc</label>
+          </div>
+          <label class="fld" for="s2-age">Tuổi <span><input type="number" id="s2-age" min="40" max="69"> <span class="u">năm</span></span></label>
+          <label class="fld" for="s2-sbp">HA tâm thu <span><input type="number" id="s2-sbp" step="1"> <span class="u">mmHg</span></span></label>
+        </fieldset>
+        <fieldset><legend>Lipid máu <span class="seg" role="group" aria-label="Đơn vị cholesterol" data-unit="s2"><button type="button" data-u="mmol" aria-pressed="true">mmol/L</button><button type="button" data-u="mg" aria-pressed="false">mg/dL</button></span></legend>
+          <label class="fld" for="s2-tc">Cholesterol toàn phần <span><input type="number" id="s2-tc" step="0.1"> <span class="u u-chol">mmol/L</span></span></label>
+          <label class="fld" for="s2-hdl">HDL-C <span><input type="number" id="s2-hdl" step="0.1"> <span class="u u-chol">mmol/L</span></span></label>
+        </fieldset>
+        <fieldset><legend>Hiệu chỉnh theo vùng</legend>
+          <select id="s2-reg" aria-label="Vùng hiệu chỉnh">
+            <optgroup label="SCORE2 Asia-Pacific">
+              <option value="ap-low">Châu Á–TBD: nguy cơ thấp</option>
+              <option value="ap-mod">Châu Á–TBD: nguy cơ trung bình</option>
+              <option value="ap-high" selected>Châu Á–TBD: nguy cơ cao (Việt Nam)</option>
+              <option value="ap-vhigh">Châu Á–TBD: nguy cơ rất cao</option>
+            </optgroup>
+            <optgroup label="SCORE2 châu Âu">
+              <option value="eu-low">Châu Âu: nguy cơ thấp</option>
+              <option value="eu-mod">Châu Âu: nguy cơ trung bình</option>
+              <option value="eu-high">Châu Âu: nguy cơ cao</option>
+              <option value="eu-vhigh">Châu Âu: nguy cơ rất cao</option>
+            </optgroup>
+          </select>
+          <p class="note">Vùng được xếp theo tỉ lệ tử vong tim mạch chuẩn hoá của WHO: thấp &lt;100, trung bình 100–&lt;150, cao 150–&lt;300, rất cao ≥300 /100.000.</p>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-s2" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-s2"></div>
+  </section>
+
+  <!-- ================= SCORE2-OP ================= -->
+  <section class="panel t-op" id="p-score2-op" hidden aria-labelledby="h-op">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-op">SCORE2-OP</h2><p>Older Persons: nguy cơ 10 năm bị biến cố tim mạch gây tử vong hoặc không tử vong, có hiệu chỉnh nguy cơ cạnh tranh</p></div>
+    <div class="scope"><b>Dùng cho:</b> người ≥70 tuổi chưa có bệnh tim mạch xơ vữa. Có tính đến đái tháo đường như một biến số. Ở người rất cao tuổi, cân nhắc thêm hội chứng dễ tổn thương, bệnh kèm, kỳ vọng sống và mong muốn của người bệnh.</div>
+    <div class="grid">
+      <form id="f-op" onsubmit="return false">
+        <fieldset><legend>Thông tin chung</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="op-sex" id="op-m" value="M"> Nam</label>
+            <label class="opt"><input type="radio" name="op-sex" id="op-w" value="W"> Nữ</label>
+            <label class="opt"><input type="checkbox" id="op-smk"> Đang hút thuốc</label>
+            <label class="opt"><input type="checkbox" id="op-dm"> Đái tháo đường</label>
+          </div>
+          <label class="fld" for="op-age">Tuổi <span><input type="number" id="op-age" min="70" max="89"> <span class="u">năm</span></span></label>
+          <label class="fld" for="op-sbp">HA tâm thu <span><input type="number" id="op-sbp" step="1"> <span class="u">mmHg</span></span></label>
+        </fieldset>
+        <fieldset><legend>Lipid máu <span class="seg" role="group" aria-label="Đơn vị cholesterol" data-unit="op"><button type="button" data-u="mmol" aria-pressed="true">mmol/L</button><button type="button" data-u="mg" aria-pressed="false">mg/dL</button></span></legend>
+          <label class="fld" for="op-tc">Cholesterol toàn phần <span><input type="number" id="op-tc" step="0.1"> <span class="u u-chol">mmol/L</span></span></label>
+          <label class="fld" for="op-hdl">HDL-C <span><input type="number" id="op-hdl" step="0.1"> <span class="u u-chol">mmol/L</span></span></label>
+        </fieldset>
+        <fieldset><legend>Hiệu chỉnh theo vùng</legend>
+          <select id="op-reg" aria-label="Vùng hiệu chỉnh">
+            <option value="eu-low">Châu Âu: nguy cơ thấp</option>
+            <option value="eu-mod">Châu Âu: nguy cơ trung bình</option>
+            <option value="eu-high" selected>Châu Âu: nguy cơ cao</option>
+            <option value="eu-vhigh">Châu Âu: nguy cơ rất cao</option>
+          </select>
+          <p class="note">SCORE2 Asia-Pacific chỉ áp dụng cho 40–69 tuổi. Với người Việt ≥70 tuổi, trang mặc định dùng hệ số vùng châu Âu “nguy cơ cao” (cùng ngưỡng tử vong tim mạch 150–&lt;300/100.000) như một ước lượng gần đúng.</p>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-op" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-op"></div>
+  </section>
+
+  <!-- ================= SCORE2-Diabetes ================= -->
+  <section class="panel t-dm" id="p-score2-diabetes" hidden aria-labelledby="h-dm">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-dm">SCORE2-Diabetes</h2><p>Nguy cơ 10 năm bị biến cố tim mạch gây tử vong hoặc không tử vong ở người đái tháo đường típ 2</p></div>
+    <div class="scope"><b>Dùng cho:</b> đái tháo đường típ 2, 40–69 tuổi, <b>chưa</b> có bệnh tim mạch xơ vữa và <b>chưa</b> có tổn thương cơ quan đích nặng. Nếu đã có một trong hai: xếp <b>nguy cơ rất cao</b>, không cần tính.
+      <br><b>Tổn thương cơ quan đích nặng:</b> eGFR &lt;45; hoặc eGFR 45–59 kèm albumin niệu vi lượng (UACR 30–300 mg/g); hoặc protein niệu (UACR &gt;300 mg/g); hoặc bệnh vi mạch ở ≥3 vị trí.</div>
+    <div class="grid">
+      <form id="f-dm" onsubmit="return false">
+        <fieldset><legend>Thông tin chung</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="dm-sex" id="dm-m" value="M"> Nam</label>
+            <label class="opt"><input type="radio" name="dm-sex" id="dm-w" value="W"> Nữ</label>
+            <label class="opt"><input type="checkbox" id="dm-smk"> Đang hút thuốc</label>
+          </div>
+          <label class="fld" for="dm-age">Tuổi <span><input type="number" id="dm-age" min="40" max="69"> <span class="u">năm</span></span></label>
+          <label class="fld" for="dm-agd">Tuổi lúc chẩn đoán ĐTĐ <span><input type="number" id="dm-agd"> <span class="u">năm</span></span></label>
+          <label class="fld" for="dm-sbp">HA tâm thu <span><input type="number" id="dm-sbp" step="1"> <span class="u">mmHg</span></span></label>
+        </fieldset>
+        <fieldset><legend>Lipid máu <span class="seg" role="group" aria-label="Đơn vị cholesterol" data-unit="dm"><button type="button" data-u="mmol" aria-pressed="true">mmol/L</button><button type="button" data-u="mg" aria-pressed="false">mg/dL</button></span></legend>
+          <label class="fld" for="dm-tc">Cholesterol toàn phần <span><input type="number" id="dm-tc" step="0.1"> <span class="u u-chol">mmol/L</span></span></label>
+          <label class="fld" for="dm-hdl">HDL-C <span><input type="number" id="dm-hdl" step="0.1"> <span class="u u-chol">mmol/L</span></span></label>
+        </fieldset>
+        <fieldset><legend>Đường huyết, chức năng thận <span class="seg" role="group" aria-label="Đơn vị HbA1c" data-a1c="dm"><button type="button" data-u="pct" aria-pressed="true">HbA1c %</button><button type="button" data-u="mmol" aria-pressed="false">mmol/mol</button></span></legend>
+          <label class="fld" for="dm-a1c">HbA1c <span><input type="number" id="dm-a1c" step="0.1"> <span class="u" id="u-a1c">%</span></span></label>
+          <label class="fld" for="dm-egfr">eGFR <span><input type="number" id="dm-egfr" step="1"> <span class="u">mL/ph/1,73 m²</span></span></label>
+          <button type="button" class="mini" id="dm-egfr-toggle" aria-expanded="false" aria-controls="dm-egfr-help">Tính eGFR từ creatinin (CKD-EPI 2009)</button>
+          <div class="helper" id="dm-egfr-help" hidden>
+            <label class="fld" for="dm-cr">Creatinin máu <span><input type="number" id="dm-cr" step="1"> <span class="u">µmol/L</span></span></label>
+            <div class="row"><span id="dm-cr-out"></span><button type="button" class="mini" id="dm-cr-use">Dùng giá trị này</button></div>
+          </div>
+        </fieldset>
+        <fieldset><legend>Hiệu chỉnh theo vùng</legend>
+          <select id="dm-reg" aria-label="Vùng hiệu chỉnh">
+            <option value="eu-low">Châu Âu: nguy cơ thấp</option>
+            <option value="eu-mod">Châu Âu: nguy cơ trung bình</option>
+            <option value="eu-high" selected>Châu Âu: nguy cơ cao</option>
+            <option value="eu-vhigh">Châu Âu: nguy cơ rất cao</option>
+          </select>
+          <p class="note">Chưa có phiên bản châu Á–TBD cho SCORE2-Diabetes. Trang mặc định dùng hệ số vùng châu Âu “nguy cơ cao” (cùng ngưỡng tử vong tim mạch với vùng của Việt Nam) như một ước lượng gần đúng.</p>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-dm" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-dm"></div>
+  </section>
+
+  <!-- ================= eGFR ================= -->
+  <section class="panel t-eg" id="p-egfr" hidden aria-labelledby="h-eg">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-eg">Mức lọc cầu thận</h2></div>
+    <div class="grid">
+      <form id="f-eg" onsubmit="return false">
+        <fieldset><legend>Thông tin chung</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="eg-sex" id="eg-m" value="M"> Nam</label>
+            <label class="opt"><input type="radio" name="eg-sex" id="eg-w" value="W"> Nữ</label>
+          </div>
+          <label class="fld" for="eg-age">Tuổi <span><input type="number" id="eg-age" min="18"> <span class="u">năm</span></span></label>
+          <label class="fld" for="eg-wt">Cân nặng thực tế <span><input type="number" id="eg-wt" step="0.1"> <span class="u">kg</span></span></label>
+        </fieldset>
+        <fieldset><legend>Creatinin máu <span class="seg" role="group" aria-label="Đơn vị creatinin" data-cr="eg"><button type="button" data-u="umol" aria-pressed="true">µmol/L</button><button type="button" data-u="mg" aria-pressed="false">mg/dL</button></span></legend>
+          <label class="fld" for="eg-cr">Creatinin <span><input type="number" id="eg-cr" step="1"> <span class="u u-cr">µmol/L</span></span></label>
+        </fieldset>
+        <fieldset><legend>Thêm (không bắt buộc)</legend>
+          <label class="fld" for="eg-ht">Chiều cao <span><input type="number" id="eg-ht" step="1"> <span class="u">cm</span></span></label>
+          <p class="note">Có chiều cao thì trang tính thêm BMI, diện tích da, cân nặng lý tưởng và cân nặng hiệu chỉnh khi béo phì.</p>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-eg" aria-live="polite"></div></div>
+    </div>
+
+    <h3 class="sec">Dùng công thức nào, khi nào</h3>
+    <div class="cards">
+      <div class="card"><h4>Cockcroft–Gault (CrCl) <span class="pill">mặc định</span></h4><p><b>Chỉnh liều thuốc thải qua thận theo nhãn thuốc</b>: DOAC (dabigatran, rivaroxaban, apixaban, edoxaban), enoxaparin, nhiều kháng sinh. Đơn vị mL/ph, không chuẩn hoá theo diện tích da. Phụ thuộc cân nặng: sai khi béo phì, phù, cổ chướng; người cao tuổi gầy yếu thường có CrCl thấp hơn eGFR.</p></div>
+      <div class="card"><h4>CKD-EPI 2021</h4><p>Ước tính GFR và phân giai đoạn bệnh thận mạn theo KDIGO. Không có hệ số chủng tộc. Chính xác hơn MDRD, nhất là khi GFR &gt;60. Đơn vị mL/ph/1,73 m².</p></div>
+      <div class="card"><h4>MDRD (IDMS, hằng số 175)</h4><p>Phương trình cũ. Ước tính thấp khi GFR &gt;60 nên phòng xét nghiệm thường chỉ báo “&gt;60”. Nay chủ yếu để đối chiếu với tài liệu hoặc nhãn thuốc cũ.</p></div>
+    </div>
+    <p class="note">Khi chỉnh liều thuốc ở người có thể trạng khác xa chuẩn, có thể đổi eGFR sang mL/ph: eGFR × diện tích da / 1,73.</p>
+
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-eg"></div>
+  </section>
+
+  <!-- ================= CHA2DS2-VA ================= -->
+  <section class="panel t-ch" id="p-cha2ds2-va" hidden aria-labelledby="h-ch">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-ch">CHA₂DS₂-VA</h2><p>Nguy cơ đột quỵ và thuyên tắc huyết khối trong rung nhĩ, dùng để quyết định chống đông đường uống</p></div>
+    <div class="scope"><b>ESC 2024:</b> CHA₂DS₂-VASc bỏ tiêu chí giới nữ thành CHA₂DS₂-VA, cùng ngưỡng cho nam và nữ. <b>Không áp dụng thang điểm</b> khi có van tim cơ học hoặc hẹp van hai lá vừa–nặng (dùng VKA). <b>Chống đông bất kể điểm</b> khi có bệnh cơ tim phì đại hoặc amyloidosis tim.</div>
+    <div class="grid">
+      <form id="f-ch" onsubmit="return false">
+        <fieldset><legend>Tuổi</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="ch-age" id="ch-a0" value="0"> &lt;65</label>
+            <label class="opt"><input type="radio" name="ch-age" id="ch-a1" value="1"> 65–74 <span class="pts">+1</span></label>
+            <label class="opt"><input type="radio" name="ch-age" id="ch-a2" value="2"> ≥75 <span class="pts">+2</span></label>
+          </div>
+        </fieldset>
+        <fieldset><legend>Tiền sử và bệnh kèm</legend>
+          <label class="opt"><input type="checkbox" id="ch-c" data-p="1"> <span><b>C</b> Suy tim: triệu chứng/dấu hiệu suy tim bất kể LVEF, hoặc LVEF ≤40% không triệu chứng <span class="pts">+1</span></span></label>
+          <label class="opt"><input type="checkbox" id="ch-h" data-p="1"> <span><b>H</b> Tăng huyết áp: HA &gt;140/90 mmHg nhiều lần hoặc đang điều trị <span class="pts">+1</span></span></label>
+          <label class="opt"><input type="checkbox" id="ch-d" data-p="1"> <span><b>D</b> Đái tháo đường típ 1 hoặc 2 <span class="pts">+1</span></span></label>
+          <label class="opt"><input type="checkbox" id="ch-s" data-p="2"> <span><b>S₂</b> Tiền sử đột quỵ, TIA hoặc thuyên tắc huyết khối động mạch <span class="pts">+2</span></span></label>
+          <label class="opt"><input type="checkbox" id="ch-v" data-p="1"> <span><b>V</b> Bệnh mạch máu: NMCT cũ, bệnh vành có ý nghĩa, tái thông mạch vành, bệnh động mạch ngoại biên, mảng xơ vữa động mạch chủ <span class="pts">+1</span></span></label>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-ch" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-ch"></div>
+  </section>
+
+  <!-- ================= HAS-BLED ================= -->
+  <section class="panel t-hb" id="p-has-bled" hidden aria-labelledby="h-hb">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-hb">HAS-BLED</h2><p>Nguy cơ chảy máu nặng ở bệnh nhân rung nhĩ dùng chống đông</p></div>
+    <div class="scope"><b>ESC 2024:</b> không dùng điểm nguy cơ chảy máu để quyết định bắt đầu hay ngừng chống đông. Dùng để <b>phát hiện và xử trí yếu tố nguy cơ chảy máu có thể thay đổi</b> (đánh dấu <span class="mod">có thể thay đổi</span>) và xác định bệnh nhân cần theo dõi sát.</div>
+    <div class="grid">
+      <form id="f-hb" onsubmit="return false">
+        <fieldset><legend>Mỗi tiêu chí +1 điểm</legend>
+          <label class="opt"><input type="checkbox" id="hb-h" data-m="1"> <span><b>H</b> Tăng huyết áp không kiểm soát: HA tâm thu &gt;160 mmHg <span class="mod">có thể thay đổi</span></span></label>
+          <label class="opt"><input type="checkbox" id="hb-ar"> <span><b>A</b> Bất thường chức năng thận: lọc máu, ghép thận, hoặc creatinin &gt;200 µmol/L</span></label>
+          <label class="opt"><input type="checkbox" id="hb-al"> <span><b>A</b> Bất thường chức năng gan: xơ gan, hoặc bilirubin &gt;2 lần và AST/ALT/ALP &gt;3 lần giới hạn trên</span></label>
+          <label class="opt"><input type="checkbox" id="hb-s"> <span><b>S</b> Tiền sử đột quỵ (thiếu máu hoặc xuất huyết)</span></label>
+          <label class="opt"><input type="checkbox" id="hb-b"> <span><b>B</b> Tiền sử chảy máu nặng hoặc cơ địa dễ chảy máu (thiếu máu, giảm tiểu cầu nặng)</span></label>
+          <label class="opt"><input type="checkbox" id="hb-l" data-m="1"> <span><b>L</b> INR dao động (TTR &lt;60%), chỉ tính khi dùng VKA <span class="mod">có thể thay đổi</span></span></label>
+          <label class="opt"><input type="checkbox" id="hb-e"> <span><b>E</b> Tuổi &gt;65</span></label>
+          <label class="opt"><input type="checkbox" id="hb-dd" data-m="1"> <span><b>D</b> Dùng kèm thuốc chống kết tập tiểu cầu hoặc NSAID <span class="mod">có thể thay đổi</span></span></label>
+          <label class="opt"><input type="checkbox" id="hb-da" data-m="1"> <span><b>D</b> Rượu ≥8 đơn vị/tuần <span class="mod">có thể thay đổi</span></span></label>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-hb" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-hb"></div>
+  </section>
+
+  <!-- ================= GRACE ================= -->
+  <section class="panel t-gr" id="p-grace" hidden aria-labelledby="h-gr">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-gr">GRACE</h2><p>Nguy cơ tử vong trong viện ở hội chứng vành cấp, thang điểm gốc của Granger 2003</p></div>
+    <div class="scope"><b>Dùng cho:</b> hội chứng vành cấp, lấy số liệu lúc nhập viện. ESC 2023 dùng <b>GRACE &gt;140</b> là một tiêu chí nguy cơ cao ở NSTE-ACS. Đây là bản tính điểm theo bảng; GRACE 2.0 (phương trình liên tục) có thể lệch vài điểm.</div>
+    <div class="grid">
+      <form id="f-gr" onsubmit="return false">
+        <fieldset><legend>Sinh hiệu, xét nghiệm lúc nhập viện</legend>
+          <label class="fld" for="gr-age">Tuổi <span><input type="number" id="gr-age"> <span class="u">năm</span></span></label>
+          <label class="fld" for="gr-hr">Tần số tim <span><input type="number" id="gr-hr"> <span class="u">lần/ph</span></span></label>
+          <label class="fld" for="gr-sbp">HA tâm thu <span><input type="number" id="gr-sbp"> <span class="u">mmHg</span></span></label>
+          <label class="fld" for="gr-cr">Creatinin <span><input type="number" id="gr-cr" step="1"> <span class="u u-cr">µmol/L</span></span></label>
+          <span class="seg" role="group" aria-label="Đơn vị creatinin" data-cr="gr"><button type="button" data-u="umol" aria-pressed="true">µmol/L</button><button type="button" data-u="mg" aria-pressed="false">mg/dL</button></span>
+        </fieldset>
+        <fieldset><legend>Phân độ Killip</legend>
+          <label class="opt"><input type="radio" name="gr-kil" id="gr-k1" value="1"> I: không có dấu hiệu suy tim</label>
+          <label class="opt"><input type="radio" name="gr-kil" id="gr-k2" value="2"> II: ran ẩm đáy phổi, tĩnh mạch cổ nổi, tiếng T3</label>
+          <label class="opt"><input type="radio" name="gr-kil" id="gr-k3" value="3"> III: phù phổi cấp</label>
+          <label class="opt"><input type="radio" name="gr-kil" id="gr-k4" value="4"> IV: sốc tim</label>
+        </fieldset>
+        <fieldset><legend>Khác</legend>
+          <label class="opt"><input type="checkbox" id="gr-arr"> Ngừng tim lúc nhập viện <span class="pts">+39</span></label>
+          <label class="opt"><input type="checkbox" id="gr-st"> Biến đổi đoạn ST (chênh lên hoặc chênh xuống) <span class="pts">+28</span></label>
+          <label class="opt"><input type="checkbox" id="gr-enz"> Tăng men tim (troponin) <span class="pts">+14</span></label>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-gr" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-gr"></div>
+  </section>
+
+  <!-- ================= CHILD-PUGH ================= -->
+  <section class="panel t-cp" id="p-child-pugh" hidden aria-labelledby="h-cp">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-cp">Child-Pugh</h2><p>Mức độ nặng của xơ gan, tiên lượng sống và lựa chọn thuốc (ví dụ DOAC)</p></div>
+    <div class="grid">
+      <form id="f-cp" onsubmit="return false">
+        <fieldset><legend>Xét nghiệm <span class="seg" role="group" aria-label="Đơn vị bilirubin" data-bili="cp"><button type="button" data-u="umol" aria-pressed="true">Bilirubin µmol/L</button><button type="button" data-u="mg" aria-pressed="false">mg/dL</button></span></legend>
+          <label class="fld" for="cp-bili">Bilirubin toàn phần <span><input type="number" id="cp-bili" step="1"> <span class="u" id="u-bili">µmol/L</span></span></label>
+          <label class="fld" for="cp-alb">Albumin <span><input type="number" id="cp-alb" step="1"> <span class="u">g/L</span></span></label>
+          <label class="fld" for="cp-inr">INR <span><input type="number" id="cp-inr" step="0.1"> <span class="u">&nbsp;</span></span></label>
+          <label class="opt"><input type="checkbox" id="cp-chol"> Bệnh gan ứ mật (xơ gan mật nguyên phát, viêm xơ đường mật): dùng ngưỡng bilirubin riêng</label>
+        </fieldset>
+        <fieldset><legend>Cổ trướng</legend>
+          <label class="opt"><input type="radio" name="cp-asc" id="cp-asc1" value="1"> Không có</label>
+          <label class="opt"><input type="radio" name="cp-asc" id="cp-asc2" value="2"> Nhẹ, hoặc kiểm soát được bằng lợi tiểu</label>
+          <label class="opt"><input type="radio" name="cp-asc" id="cp-asc3" value="3"> Vừa–nhiều, hoặc kháng trị</label>
+        </fieldset>
+        <fieldset><legend>Bệnh não gan</legend>
+          <label class="opt"><input type="radio" name="cp-enc" id="cp-enc1" value="1"> Không có</label>
+          <label class="opt"><input type="radio" name="cp-enc" id="cp-enc2" value="2"> Độ 1–2, hoặc kiểm soát được bằng thuốc</label>
+          <label class="opt"><input type="radio" name="cp-enc" id="cp-enc3" value="3"> Độ 3–4, hoặc kháng trị</label>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-cp" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-cp"></div>
+  </section>
+
+  <!-- ================= GENEVA ================= -->
+  <section class="panel t-gv" id="p-geneva" hidden aria-labelledby="h-gv">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-gv">Geneva</h2><p>Xác suất lâm sàng thuyên tắc phổi: bản sửa đổi và bản đơn giản hoá tính cùng lúc</p></div>
+    <div class="scope"><b>Dùng cho:</b> nghi thuyên tắc phổi, <b>huyết động ổn định</b>. Nghi thuyên tắc phổi kèm sốc hoặc tụt huyết áp: siêu âm tim tại giường hoặc CT mạch phổi ngay, không tính điểm.</div>
+    <div class="grid">
+      <form id="f-gv" onsubmit="return false">
+        <fieldset><legend>Yếu tố nguy cơ</legend>
+          <label class="opt"><input type="checkbox" id="gv-age"> <span>Tuổi &gt;65 <span class="pts">+1 · +1</span></span></label>
+          <label class="opt"><input type="checkbox" id="gv-prev"> <span>Tiền sử huyết khối tĩnh mạch sâu hoặc thuyên tắc phổi <span class="pts">+3 · +1</span></span></label>
+          <label class="opt"><input type="checkbox" id="gv-surg"> <span>Phẫu thuật gây mê toàn thân hoặc gãy xương chi dưới trong 1 tháng <span class="pts">+2 · +1</span></span></label>
+          <label class="opt"><input type="checkbox" id="gv-ca"> <span>Ung thư đang hoạt động (u đặc hoặc huyết học, đang điều trị hoặc khỏi &lt;1 năm) <span class="pts">+2 · +1</span></span></label>
+        </fieldset>
+        <fieldset><legend>Triệu chứng, dấu hiệu</legend>
+          <label class="opt"><input type="checkbox" id="gv-pain"> <span>Đau một bên chi dưới <span class="pts">+3 · +1</span></span></label>
+          <label class="opt"><input type="checkbox" id="gv-hemo"> <span>Ho ra máu <span class="pts">+2 · +1</span></span></label>
+          <label class="opt"><input type="checkbox" id="gv-dvt"> <span>Đau khi ấn dọc tĩnh mạch sâu chi dưới và phù một bên <span class="pts">+4 · +1</span></span></label>
+          <label class="fld" for="gv-hr">Tần số tim <span><input type="number" id="gv-hr"> <span class="u">lần/ph</span></span></label>
+          <p class="note">Tần số tim 75–94: +3 (sửa đổi) · +1 (đơn giản hoá). ≥95: +5 · +2. Nhãn điểm ghi theo thứ tự: sửa đổi · đơn giản hoá.</p>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-gv" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-gv"></div>
+  </section>
+
+  <!-- ================= PESI / sPESI ================= -->
+  <section class="panel t-ps" id="p-pesi" hidden aria-labelledby="h-ps">
+    <div class="topbar"><button type="button" class="back" data-back>← Danh sách thang điểm</button><button type="button" class="back reset" data-reset>↺ Làm mới</button></div>
+    <div class="phead"><h2 id="h-ps">PESI và sPESI</h2><p>Tiên lượng tử vong 30 ngày ở thuyên tắc phổi đã chẩn đoán; nhập một lần, tính cả hai thang và phân tầng nguy cơ theo ESC</p></div>
+    <div class="grid">
+      <form id="f-ps" onsubmit="return false">
+        <fieldset><legend>Thông tin chung</legend>
+          <div class="row">
+            <label class="opt"><input type="radio" name="ps-sex" id="ps-m" value="M"> Nam</label>
+            <label class="opt"><input type="radio" name="ps-sex" id="ps-w" value="W"> Nữ</label>
+          </div>
+          <label class="fld" for="ps-age">Tuổi <span><input type="number" id="ps-age"> <span class="u">năm</span></span></label>
+          <label class="opt"><input type="checkbox" id="ps-ca"> Ung thư</label>
+          <label class="opt"><input type="checkbox" id="ps-hf"> Suy tim mạn</label>
+          <label class="opt"><input type="checkbox" id="ps-lung"> Bệnh phổi mạn</label>
+        </fieldset>
+        <fieldset><legend>Lâm sàng lúc chẩn đoán</legend>
+          <label class="fld" for="ps-hr">Tần số tim <span><input type="number" id="ps-hr"> <span class="u">lần/ph</span></span></label>
+          <label class="fld" for="ps-sbp">HA tâm thu <span><input type="number" id="ps-sbp"> <span class="u">mmHg</span></span></label>
+          <label class="fld" for="ps-rr">Tần số thở <span><input type="number" id="ps-rr"> <span class="u">lần/ph</span></span></label>
+          <label class="fld" for="ps-t">Nhiệt độ <span><input type="number" id="ps-t" step="0.1"> <span class="u">°C</span></span></label>
+          <label class="fld" for="ps-sat">SaO₂ <span><input type="number" id="ps-sat"> <span class="u">%</span></span></label>
+          <label class="opt"><input type="checkbox" id="ps-ams"> Thay đổi ý thức (mất định hướng, lơ mơ, hôn mê)</label>
+        </fieldset>
+        <fieldset><legend>Phân tầng nguy cơ ESC (không bắt buộc)</legend>
+          <label class="opt"><input type="checkbox" id="ps-unst"> Huyết động không ổn định: ngừng tim, sốc tắc nghẽn, hoặc tụt HA kéo dài (HATT &lt;90 mmHg)</label>
+          <label class="opt"><input type="checkbox" id="ps-rv"> Rối loạn chức năng thất phải trên siêu âm tim hoặc CT mạch phổi</label>
+          <label class="opt"><input type="checkbox" id="ps-trop"> Tăng troponin</label>
+        </fieldset>
+      </form>
+      <div><div class="result" id="r-ps" aria-live="polite"></div></div>
+    </div>
+    <h3 class="sec">Cách tính</h3>
+    <div id="m-ps"></div>
+  </section>
+</main>
+
+<footer class="wrap" id="foot">
+  <p><b>Nguồn:</b> ESC 2024 Chronic Coronary Syndromes (RF-CL, Figure 4) · SCORE2 working group, Eur Heart J 2021;42:2439 · SCORE2-OP working group, Eur Heart J 2021;42:2455 · SCORE2-Diabetes, Eur Heart J 2023;44:2544 · SCORE2 Asia-Pacific, Eur Heart J 2025;46:702 · Phân tầng nguy cơ: ESC 2021 Phòng ngừa bệnh tim mạch, ESC 2023 Đái tháo đường · CKD-EPI 2021 (Inker, NEJM 2021) · CKD-EPI 2009 (Levey, Ann Intern Med 2009) · MDRD IDMS (Levey, Clin Chem 2007) · Cockcroft–Gault (Nephron 1976) · KDIGO 2024 CKD · ESC 2024 Rung nhĩ (CHA₂DS₂-VA, HAS-BLED) · GRACE: Granger, Arch Intern Med 2003 · ESC 2023 Hội chứng vành cấp · Child-Pugh (Pugh, Br J Surg 1973) · EHRA 2021 Practical Guide về DOAC · Geneva sửa đổi (Le Gal, Ann Intern Med 2006) và đơn giản hoá (Klok, Arch Intern Med 2008) · PESI (Aujesky, AJRCCM 2005) · sPESI (Jiménez, Arch Intern Med 2010) · ESC 2019 Thuyên tắc phổi. Hệ số đối chiếu với gói R RiskScorescvd và kiểm tra lại bằng các ví dụ đã công bố.</p>
+  <p>Công cụ phục vụ học tập và hỗ trợ quyết định. Không thay thế đánh giá lâm sàng.</p>
+</footer>
+
+<script>
+// ===== Pure calculation functions (shared by page and tests) =====
+var RFCL = {
+  W: { s01:[[0,1,2],[1,1,3],[1,2,5],[2,4,7],[4,7,11]],
+       s2: [[0,1,3],[1,2,5],[2,3,7],[3,6,11],[6,10,16]],
+       s3: [[2,5,10],[4,7,12],[6,10,15],[10,14,19],[16,19,23]] },
+  M: { s01:[[1,2,5],[2,4,8],[4,7,12],[8,12,17],[15,19,24]],
+       s2: [[2,4,8],[3,6,12],[6,11,17],[12,17,25],[22,27,34]],
+       s3: [[9,14,22],[14,20,27],[21,27,33],[32,35,39],[44,44,45]] }
+};
+function rfcl(sex, age, score, nrf){
+  if (!(age>=30 && age<=80)) return null;
+  var a = age>=70 ? 4 : Math.floor((age-30)/10);
+  var g = score<=1 ? "s01" : (score===2 ? "s2" : "s3");
+  var r = nrf<=1 ? 0 : (nrf<=3 ? 1 : 2);
+  return {p: RFCL[sex][g][a][r], a:a, g:g, r:r};
+}
+
+// SCORE2 (40–69) coefficients: order = age, smoke, sbp, diab, tc, hdl, smoke*age, sbp*age, tc*age, hdl*age, diab*age
+var S2 = {
+  M: {c:[0.3742,0.6012,0.2777,0.6457,0.1458,-0.2698,-0.0755,-0.0255,-0.0281,0.0426,-0.0983], s0:0.9605},
+  W: {c:[0.4648,0.7744,0.3131,0.8096,0.1002,-0.2606,-0.1088,-0.0277,-0.0226,0.0613,-0.1272], s0:0.9776}
+};
+var CAL = {
+  "eu-low":  {M:[-0.5699,0.7476], W:[-0.7380,0.7019]},
+  "eu-mod":  {M:[-0.1565,0.8009], W:[-0.3143,0.7701]},
+  "eu-high": {M:[0.3207,0.9360],  W:[0.5710,0.9369]},
+  "eu-vhigh":{M:[0.5836,0.8294],  W:[0.9412,0.8329]},
+  "ap-low":  {M:[-0.375229965,0.62020875], W:[-0.986572446,0.536743779]},
+  "ap-mod":  {M:[0.284885676,0.778128607], W:[0.08278687,0.718980326]},
+  "ap-high": {M:[0.778231091,0.844985356], W:[0.611474287,0.703624072]},
+  "ap-vhigh":{M:[0.608975204,0.679014197], W:[0.502751798,0.555577072]}
+};
+var CAL_OP = {
+  "eu-low":  {M:[-0.34,1.19], W:[-0.52,1.01]},
+  "eu-mod":  {M:[0.01,1.25],  W:[-0.10,1.10]},
+  "eu-high": {M:[0.08,1.15],  W:[0.38,1.09]},
+  "eu-vhigh":{M:[0.05,0.70],  W:[0.38,0.69]}
+};
+function recal(unc, k){ return 1 - Math.exp(-Math.exp(k[0] + k[1]*Math.log(-Math.log(1-unc)))); }
+
+function score2(sex, age, smk, sbp, tc, hdl, region){
+  var c = S2[sex].c;
+  var x = {cage:(age-60)/5, csbp:(sbp-120)/20, ctc:tc-6, chdl:(hdl-1.3)/0.5};
+  var terms = [
+    ["Tuổi", c[0]*x.cage], ["Hút thuốc", c[1]*smk], ["HA tâm thu", c[2]*x.csbp],
+    ["Cholesterol TP", c[4]*x.ctc], ["HDL-C", c[5]*x.chdl],
+    ["Tuổi × hút thuốc", c[6]*x.cage*smk], ["Tuổi × HA", c[7]*x.cage*x.csbp],
+    ["Tuổi × cholesterol TP", c[8]*x.cage*x.ctc], ["Tuổi × HDL-C", c[9]*x.cage*x.chdl]
+  ];
+  var lp = terms.reduce(function(s,t){return s+t[1];},0);
+  var unc = 1 - Math.pow(S2[sex].s0, Math.exp(lp));
+  var k = CAL[region][sex];
+  return {x:x, terms:terms, lp:lp, s0:S2[sex].s0, unc:unc, k:k, risk:recal(unc,k)};
+}
+
+// SCORE2-OP (≥70): order = age, diab, smoke, sbp, tc, hdl, diab*age, smoke*age, sbp*age, tc*age, hdl*age
+var OP = {
+  M: {c:[0.0634,0.4245,0.3524,0.0094,0.0850,-0.3564,-0.0174,-0.0247,-0.0005,0.0073,0.0091], s0:0.7576, m:0.0929},
+  W: {c:[0.0789,0.6010,0.4921,0.0102,0.0605,-0.3040,-0.0107,-0.0255,-0.0004,-0.0009,0.0154], s0:0.8082, m:0.229}
+};
+function score2op(sex, age, smk, diab, sbp, tc, hdl, region){
+  var c = OP[sex].c;
+  var x = {cage:age-73, csbp:sbp-150, ctc:tc-6, chdl:hdl-1.4};
+  var terms = [
+    ["Tuổi", c[0]*x.cage], ["Đái tháo đường", c[1]*diab], ["Hút thuốc", c[2]*smk],
+    ["HA tâm thu", c[3]*x.csbp], ["Cholesterol TP", c[4]*x.ctc], ["HDL-C", c[5]*x.chdl],
+    ["Tuổi × ĐTĐ", c[6]*x.cage*diab], ["Tuổi × hút thuốc", c[7]*x.cage*smk],
+    ["Tuổi × HA", c[8]*x.cage*x.csbp], ["Tuổi × cholesterol TP", c[9]*x.cage*x.ctc], ["Tuổi × HDL-C", c[10]*x.cage*x.chdl]
+  ];
+  var lp = terms.reduce(function(s,t){return s+t[1];},0);
+  var unc = 1 - Math.pow(OP[sex].s0, Math.exp(lp - OP[sex].m));
+  var k = CAL_OP[region][sex];
+  return {x:x, terms:terms, lp:lp, s0:OP[sex].s0, mean:OP[sex].m, unc:unc, k:k, risk:recal(unc,k)};
+}
+
+// SCORE2-Diabetes (40–69)
+var DM = {
+  M: {age:0.5368, smk:0.4774, sbp:0.1322, dm:0.6457, tc:0.1102, hdl:-0.1087,
+      smkA:-0.0672, sbpA:-0.0268, dmA:-0.0983, tcA:-0.0181, hdlA:0.0095,
+      agd:-0.0998, a1c:0.0955, egfr:-0.0591, egfr2:0.0058, a1cA:-0.0134, egfrA:0.0115, s0:0.9605},
+  W: {age:0.6624, smk:0.6139, sbp:0.1421, dm:0.8096, tc:0.1127, hdl:-0.1568,
+      smkA:-0.1122, sbpA:-0.0167, dmA:-0.1272, tcA:-0.0200, hdlA:0.0186,
+      agd:-0.1180, a1c:0.1173, egfr:-0.0640, egfr2:0.0062, a1cA:-0.0196, egfrA:0.0169, s0:0.9776}
+};
+function score2dm(sex, age, smk, sbp, tc, hdl, agediag, a1c, egfr, region){
+  var b = DM[sex];
+  var x = {cage:(age-60)/5, csbp:(sbp-120)/20, ctc:tc-6, chdl:(hdl-1.3)/0.5,
+           cagd:(agediag-50)/5, ca1c:(a1c-31)/9.34, cegfr:(Math.log(egfr)-4.5)/0.15};
+  var terms = [
+    ["Tuổi", b.age*x.cage], ["Hút thuốc", b.smk*smk], ["HA tâm thu", b.sbp*x.csbp],
+    ["Đái tháo đường", b.dm], ["Cholesterol TP", b.tc*x.ctc], ["HDL-C", b.hdl*x.chdl],
+    ["Tuổi × hút thuốc", b.smkA*x.cage*smk], ["Tuổi × HA", b.sbpA*x.cage*x.csbp],
+    ["Tuổi × ĐTĐ", b.dmA*x.cage], ["Tuổi × cholesterol TP", b.tcA*x.cage*x.ctc], ["Tuổi × HDL-C", b.hdlA*x.cage*x.chdl],
+    ["Tuổi lúc chẩn đoán ĐTĐ", b.agd*x.cagd], ["HbA1c", b.a1c*x.ca1c],
+    ["ln eGFR", b.egfr*x.cegfr], ["(ln eGFR)²", b.egfr2*x.cegfr*x.cegfr],
+    ["HbA1c × tuổi", b.a1cA*x.ca1c*x.cage], ["ln eGFR × tuổi", b.egfrA*x.cegfr*x.cage]
+  ];
+  var lp = terms.reduce(function(s,t){return s+t[1];},0);
+  var unc = 1 - Math.pow(b.s0, Math.exp(lp));
+  var k = CAL[region][sex];
+  return {x:x, terms:terms, lp:lp, s0:b.s0, unc:unc, k:k, risk:recal(unc,k)};
+}
+
+// CKD-EPI 2009 (không hệ số chủng tộc), creatinine µmol/L
+function ckdepi2009(sex, age, scrUmol){
+  var scr = scrUmol/88.4, k = sex==="W"?0.7:0.9, a = sex==="W"?-0.329:-0.411;
+  var v = 141*Math.pow(Math.min(scr/k,1),a)*Math.pow(Math.max(scr/k,1),-1.209)*Math.pow(0.993,age);
+  return sex==="W" ? v*1.018 : v;
+}
+if (typeof module!=="undefined") module.exports={rfcl:rfcl,score2:score2,score2op:score2op,score2dm:score2dm,ckdepi2009:ckdepi2009};
+
+// ===== eGFR / CrCl =====
+// scr: mg/dL
+function egfrCkdepi2021(sex, age, scr){
+  var k = sex==="W"?0.7:0.9, a = sex==="W"?-0.241:-0.302;
+  var v = 142*Math.pow(Math.min(scr/k,1),a)*Math.pow(Math.max(scr/k,1),-1.200)*Math.pow(0.9938,age);
+  return sex==="W" ? v*1.012 : v;
+}
+function egfrCkdepi2009(sex, age, scr){ return ckdepi2009(sex, age, scr*88.4); }
+function egfrMdrd(sex, age, scr){ var v = 175*Math.pow(scr,-1.154)*Math.pow(age,-0.203); return sex==="W" ? v*0.742 : v; }
+function crclCG(sex, age, wt, scr){ var v = (140-age)*wt/(72*scr); return sex==="W" ? v*0.85 : v; }
+function ibwDevine(sex, hcm){ return (sex==="W"?45.5:50) + 0.9055*(hcm-152.4); }
+function kdigoG(e){
+  if(e>=90) return "G1"; if(e>=60) return "G2"; if(e>=45) return "G3a"; if(e>=30) return "G3b"; if(e>=15) return "G4"; return "G5";
+}
+
+// ===== GRACE (Granger 2003, tử vong trong viện) =====
+function band(v, cuts, pts){ for(var i=0;i<cuts.length;i++){ if(v<cuts[i]) return pts[i]; } return pts[pts.length-1]; }
+function gracePts(age, hr, sbp, crMg, killip, arrest, st, enz){
+  var p = {
+    age: band(age,[30,40,50,60,70,80,90],[0,8,25,41,58,75,91,100]),
+    hr:  band(hr,[50,70,90,110,150,200],[0,3,9,15,24,38,46]),
+    sbp: band(sbp,[80,100,120,140,160,200],[58,53,43,34,24,10,0]),
+    cr:  band(crMg,[0.40,0.80,1.20,1.60,2.00,4.00],[1,4,7,10,13,21,28]),
+    killip: [0,20,39,59][killip-1],
+    arrest: arrest?39:0, st: st?28:0, enz: enz?14:0
+  };
+  p.total = p.age+p.hr+p.sbp+p.cr+p.killip+p.arrest+p.st+p.enz;
+  return p;
+}
+var GRACE_TAB=[[60,0.2],[70,0.3],[80,0.4],[90,0.6],[100,0.8],[110,1.1],[120,1.6],[130,2.1],[140,2.9],[150,3.9],[160,5.4],[170,7.3],[180,9.8],[190,13],[200,18],[210,23],[220,29],[230,36],[240,44],[250,52]];
+function graceProb(t){
+  if(t<=60) return {p:0.2, sign:"≤"};
+  if(t>=250) return {p:52, sign:"≥"};
+  for(var i=0;i<GRACE_TAB.length-1;i++){
+    var a=GRACE_TAB[i], b=GRACE_TAB[i+1];
+    if(t>=a[0] && t<=b[0]) return {p:a[1]+(b[1]-a[1])*(t-a[0])/(b[0]-a[0]), sign:"≈"};
+  }
+}
+if (typeof module!=="undefined") Object.assign(module.exports,{egfrCkdepi2021:egfrCkdepi2021,egfrCkdepi2009:egfrCkdepi2009,egfrMdrd:egfrMdrd,crclCG:crclCG,ibwDevine:ibwDevine,kdigoG:kdigoG,gracePts:gracePts,graceProb:graceProb});
+
+(function(){
+  function $(id){return document.getElementById(id);}
+  function num(id){var v=parseFloat(String($(id).value).replace(",", "."));return isNaN(v)?null:v;}
+  function radio(n){var e=document.querySelector('input[name="'+n+'"]:checked');return e?e.value:null;}
+  function chk(id){return $(id).checked?1:0;}
+  function f(x,d){return x.toLocaleString("vi-VN",{minimumFractionDigits:d,maximumFractionDigits:d});}
+  function pct(x){return f(x*100,1)+"%";}
+  var COL={ok:"var(--ok)",warn:"var(--warn)",bad:"var(--bad)",crit:"var(--crit)"};
+  var units={s2:"mmol",op:"mmol",dm:"mmol"}, a1cUnit="pct";
+  var MGCHOL=38.67;
+
+  /* ---------- routing ---------- */
+  var KEYS=["rf-cl","score2","score2-op","score2-diabetes","egfr","cha2ds2-va","has-bled","grace","child-pugh","geneva","pesi"];
+  var current=null, fromMenu=false, lastTile=null;
+  function show(k){
+    if(k===current) return;
+    current=k;
+    KEYS.forEach(function(x){ $("p-"+x).hidden = (x!==k); });
+    $("home").hidden = !!k;
+    $("foot").hidden = !!k;
+    window.scrollTo(0,0);
+    if(k){ var b=$("p-"+k).querySelector(".back"); if(b) b.focus({preventScroll:true}); }
+    else if(lastTile){ lastTile.focus({preventScroll:true}); }
+  }
+  function fromHash(){var k=(location.hash||"").slice(1); show(KEYS.indexOf(k)>=0?k:null);}
+  document.querySelectorAll(".tile").forEach(function(t){
+    t.addEventListener("click",function(){
+      if(editing) return;
+      var k=t.dataset.k; lastTile=t; fromMenu=true;
+      try{ location.hash=k; }catch(e){}
+      show(k);
+    });
+  });
+  document.querySelectorAll("[data-back]").forEach(function(b){
+    b.addEventListener("click",function(){
+      var usedHistory=false;
+      try{ if(fromMenu && location.hash){ history.back(); usedHistory=true; } else { location.hash=""; } }catch(e){}
+      fromMenu=false;
+      if(!usedHistory) show(null);
+      setTimeout(function(){ if(current!==null && (location.hash||"").length<2) show(null); },150);
+    });
+  });
+  window.addEventListener("hashchange",fromHash);
+
+  /* ---------- helpers ---------- */
+  function resultBox(el, o){
+    if(o.empty){ el.style.removeProperty("--rc"); el.innerHTML='<div class="lbl">'+o.lbl+'</div><div class="empty">'+o.empty+'</div>'; return; }
+    if(o.err){ el.style.removeProperty("--rc"); el.innerHTML='<div class="lbl">'+o.lbl+'</div><div class="err">'+o.err+'</div>'; return; }
+    el.style.setProperty("--rc", o.col);
+    el.innerHTML='<div class="lbl">'+o.lbl+'</div><div class="big">'+o.big+'</div><span class="cat">'+o.cat+'</span><div class="msg">'+o.msg+'</div>'+(o.scale||"")+(o.extra||"");
+  }
+  function scaleBar(cuts, cols, maxv, val){
+    var segs="", prev=0;
+    var marks=[0].concat(cuts).concat([maxv]);
+    for(var i=0;i<marks.length-1;i++){ segs+='<span style="flex:'+(marks[i+1]-marks[i])+';background:'+cols[i]+'"></span>'; }
+    var pos=Math.min(val,maxv)/maxv*100;
+    var lbl=marks.map(function(m,i){
+      if(i===0 && marks[1]/maxv<0.08) return "";
+      var l=m/maxv*100, tr = i===0 ? "none" : (i===marks.length-1 ? "translateX(-100%)" : "translateX(-50%)");
+      return '<span style="position:absolute;left:'+l+'%;transform:'+tr+'">'+String(m).replace(".",",")+'%</span>';
+    }).join("");
+    return '<div class="scale" aria-hidden="true">'+segs+'<i style="position:absolute;left:calc('+pos+'% - 2px);top:-4px;width:4px;height:18px;background:var(--ink);border-radius:2px"></i></div><div class="scalelbl">'+lbl+'</div>';
+  }
+  function cholMmol(key,id){ var v=num(id); if(v===null) return null; return units[key]==="mg" ? v/MGCHOL : v; }
+  function termsTable(terms, lp){
+    var h='<div class="tbl"><table><thead><tr><th>Thành phần</th><th class="n">β × biến</th></tr></thead><tbody>';
+    terms.forEach(function(t){ h+='<tr><td>'+t[0]+'</td><td class="n">'+f(t[1],4)+'</td></tr>'; });
+    h+='<tr class="tot"><td>Tổng LP</td><td class="n">'+f(lp,4)+'</td></tr></tbody></table></div>';
+    return h;
+  }
+  function esc21(age, r){ // ESC 2021 thresholds
+    var c = age<50 ? [2.5,7.5] : (age<70 ? [5,10] : [7.5,15]);
+    var p=r*100;
+    if(p<c[0]) return {cat:"Thấp – trung bình", col:COL.ok, msg:"Thường không khuyến cáo điều trị thuốc cho yếu tố nguy cơ. Tư vấn lối sống.", c:c};
+    if(p<c[1]) return {cat:"Cao", col:COL.warn, msg:"<b>Nên cân nhắc</b> điều trị yếu tố nguy cơ (lipid, huyết áp), cân nhắc thêm yếu tố điều chỉnh nguy cơ, bệnh kèm, lợi ích suốt đời và mong muốn người bệnh.", c:c};
+    return {cat:"Rất cao", col:COL.bad, msg:"<b>Khuyến cáo</b> điều trị yếu tố nguy cơ (lipid, huyết áp).", c:c};
+  }
+  function thrTable(age){
+    var rows=[["&lt;50 tuổi","&lt;2,5%","2,5–&lt;7,5%","≥7,5%"],["50–69 tuổi","&lt;5%","5–&lt;10%","≥10%"],["≥70 tuổi","&lt;7,5%","7,5–&lt;15%","≥15%"]];
+    var cur = age<50?0:(age<70?1:2);
+    var h='<div class="tbl"><table><thead><tr><th>Nhóm tuổi</th><th>Thấp – trung bình</th><th>Cao</th><th>Rất cao</th></tr></thead><tbody>';
+    rows.forEach(function(r,i){ h+='<tr'+(i===cur?' style="font-weight:700"':'')+'><td>'+r.join("</td><td>")+'</td></tr>'; });
+    return h+'</tbody></table></div><p class="note">Ngưỡng phân tầng theo tuổi, ESC 2021 Phòng ngừa bệnh tim mạch. Dòng in đậm là nhóm tuổi của bệnh nhân.</p>';
+  }
+  function regName(sel){ return sel.options[sel.selectedIndex].text; }
+
+  /* ---------- RF-CL ---------- */
+  var AGES=["30–39","40–49","50–59","60–69","70–80"], RFS=["0–1","2–3","4–5"];
+  function rfCat(p){
+    if(p<=5) return {t:"Rất thấp (≤5%)", col:"#4f9be0", k:"k1", todo:"Hoãn thăm dò thêm (IIa B), trừ khi triệu chứng dai dẳng và đã loại trừ nguyên nhân ngoài tim."};
+    if(p<=15) return {t:"Thấp (>5–15%)", col:"#33a86b", k:"k2", todo:"Hiệu chỉnh khả năng bằng CACS (IIa B), ECG gắng sức hoặc tìm xơ vữa ngoài mạch vành (IIb C); hoặc chụp CCTA."};
+    if(p<=50) return {t:"Vừa (>15–50%)", col:"#d9b10f", k:"k3", todo:"CCTA (ưu tiên để loại trừ, I A) hoặc hình ảnh chức năng (I B)."};
+    if(p<=85) return {t:"Cao (>50–85%)", col:"#ec8a2a", k:"", todo:"Hình ảnh chức năng: PET/SPECT, CMR, siêu âm tim gắng sức (I B)."};
+    return {t:"Rất cao (>85%)", col:"#d64545", k:"", todo:"Chụp mạch vành xâm lấn ± FFR/iFR (I C)."};
+  }
+  function calcRF(){
+    var sex=radio("rf-sex"), age=num("rf-age"), sym=radio("rf-sym");
+    ["rf-c1","rf-c2","rf-c3"].forEach(function(i){$(i).disabled=(sym==="dy");});
+    $("rf-cpbox").style.opacity = sym==="dy"?".45":"1";
+    var score = sym==="dy" ? 2 : chk("rf-c1")+chk("rf-c2")+chk("rf-c3");
+    var nrf = chk("rf-r1")+chk("rf-r2")+chk("rf-r3")+chk("rf-r4")+chk("rf-r5");
+    $("rf-x-score").textContent = sym ? score+" điểm"+(sym==="dy"?" (khó thở)":"") : "chưa chọn triệu chứng";
+    $("rf-x-rf").textContent = nrf+" yếu tố → nhóm "+(nrf<=1?"0–1":(nrf<=3?"2–3":"4–5"));
+    var r = (age===null||!sex)?null:rfcl(sex, age, score, nrf);
+    var el=$("r-rf");
+    var miss=[]; if(!sex) miss.push("giới"); if(age===null) miss.push("tuổi"); if(!sym) miss.push("triệu chứng chính");
+    if(miss.length){ r=null; resultBox(el,{lbl:"Khả năng lâm sàng bệnh vành tắc nghẽn",empty:"Chọn hoặc nhập: "+miss.join(", ")+"."}); }
+    else if(!r){ resultBox(el,{lbl:"Khả năng lâm sàng bệnh vành tắc nghẽn",err:"RF-CL chỉ áp dụng cho tuổi 30–80."}); }
+    else{
+      var c=rfCat(r.p);
+      var adj = ["rf-a1","rf-a2","rf-a3","rf-a4","rf-a5","rf-a6"].filter(function(i){return $(i).checked;}).map(function(i){return $(i).parentNode.textContent.trim();});
+      var cacs=$("rf-cacs").value, extra="";
+      if(adj.length){ extra+='<div class="warnbox"><b>Cân nhắc nâng nhóm khả năng</b> (I C) vì có: '+adj.join("; ")+'.</div>'; }
+      if(cacs!==""){
+        var m={"0":"CACS = 0: khả năng giảm rõ, nhiều trường hợp nhóm thấp chuyển thành rất thấp (≤5%) và có thể hoãn thăm dò. Thận trọng ở người trẻ có triệu chứng điển hình.",
+               "1":"CACS 1–99: có xơ vữa mạch vành. Khả năng tăng so với CACS = 0; chọn thăm dò theo khả năng đã hiệu chỉnh.",
+               "2":"CACS 100–399: gánh nặng vôi hoá đáng kể, khả năng tăng.",
+               "3":"CACS ≥400: vôi hoá nhiều, khả năng tăng rõ. CCTA dễ bị nhiễu ảnh do vôi hoá, nên ưu tiên hình ảnh chức năng."}[cacs];
+        extra+='<div class="warnbox">'+m+'</div>';
+      }
+      resultBox(el,{lbl:"Khả năng lâm sàng bệnh vành tắc nghẽn (RF-CL)",big:r.p+"%",cat:c.t,col:c.col,
+        msg:"<b>Bước tiếp theo:</b> "+c.todo, scale:scaleBar([5,15,50,85],["#4f9be0","#33a86b","#d9b10f","#ec8a2a","#d64545"],100,r.p), extra:extra});
+    }
+    // grid
+    if(!sex){ $("rf-grid").innerHTML='<p class="note">Chọn giới để hiện bảng tra.</p>'; return; }
+    var h='<table class="rfgrid"><thead><tr><th></th><th class="g" colspan="3">0–1 điểm</th><th class="g" colspan="3">2 điểm</th><th class="g" colspan="3">3 điểm</th></tr><tr><th class="a">'+(sex==="M"?"Nam":"Nữ")+' · số YTNC</th>';
+    for(var g=0;g<3;g++) RFS.forEach(function(x){h+='<th>'+x+'</th>';});
+    h+='</tr></thead><tbody>';
+    AGES.forEach(function(a,ai){
+      h+='<tr><th class="a">'+a+'</th>';
+      ["s01","s2","s3"].forEach(function(gk){
+        RFCL[sex][gk][ai].forEach(function(v,ri){
+          var hit = r && r.a===ai && r.g===gk && r.r===ri;
+          h+='<td><span class="dot '+rfCat(v).k+(hit?' hit':'')+'">'+v+'</span></td>';
+        });
+      });
+      h+='</tr>';
+    });
+    $("rf-grid").innerHTML=h+'</tbody></table>';
+  }
+
+  /* ---------- SCORE2 ---------- */
+  function calcS2(){
+    var sex=radio("s2-sex"), age=num("s2-age"), smk=chk("s2-smk"), sbp=num("s2-sbp"), tc=cholMmol("s2","s2-tc"), hdl=cholMmol("s2","s2-hdl"), reg=$("s2-reg").value;
+    var el=$("r-s2"), lbl="Nguy cơ biến cố tim mạch 10 năm";
+    if(!sex||[age,sbp,tc,hdl].some(function(v){return v===null;})){ resultBox(el,{lbl:lbl,empty:"Nhập giới, tuổi, huyết áp tâm thu, cholesterol toàn phần và HDL-C."}); $("m-s2").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    if(age<40||age>=70){ resultBox(el,{lbl:lbl,err:"SCORE2 dùng cho 40–69 tuổi. Từ 70 tuổi dùng SCORE2-OP."}); $("m-s2").innerHTML=""; return; }
+    if([sbp,tc,hdl].some(function(v){return v===null||v<=0;})){ resultBox(el,{lbl:lbl,err:"Các giá trị phải lớn hơn 0."}); $("m-s2").innerHTML=""; return; }
+    var r=score2(sex,age,smk,sbp,tc,hdl,reg), c=esc21(age,r.risk);
+    var nonhdl=tc-hdl;
+    resultBox(el,{lbl:lbl+" · "+regName($("s2-reg")),big:pct(r.risk),cat:c.cat,col:c.col,msg:c.msg,
+      scale:scaleBar(c.c,["var(--ok)","var(--warn)","var(--bad)"],Math.max(c.c[1]*2,Math.ceil(r.risk*100/5)*5),r.risk*100),
+      extra:'<p class="note">Non-HDL-C: '+f(nonhdl,2)+' mmol/L ('+f(nonhdl*MGCHOL,0)+' mg/dL).</p>'});
+    var x=r.x;
+    $("m-s2").innerHTML='<ol class="steps">'+
+      '<li><b>Chuẩn hoá biến số.</b> Cholesterol đổi sang mmol/L (mg/dL ÷ 38,67).<div class="formula">cage  = (tuổi − 60) / 5        = ('+age+' − 60)/5 = '+f(x.cage,3)+'\ncsbp  = (HATT − 120) / 20       = '+f(x.csbp,3)+'\nctc   = cholesterol TP − 6     = '+f(x.ctc,3)+'\nchdl  = (HDL-C − 1,3) / 0,5     = '+f(x.chdl,3)+'\nhút thuốc = '+smk+'</div></li>'+
+      '<li><b>Tính tổng tuyến tính LP</b> = Σ β × biến, gồm các tương tác với tuổi (hệ số theo giới '+(sex==="M"?"nam":"nữ")+'). Biến đái tháo đường bằng 0 vì người ĐTĐ dùng SCORE2-Diabetes.'+termsTable(r.terms,r.lp)+'</li>'+
+      '<li><b>Nguy cơ chưa hiệu chỉnh</b> với xác suất sống còn nền 10 năm S₀ = '+f(r.s0,4)+':<div class="formula">nguy cơ₀ = 1 − S₀^exp(LP) = 1 − '+f(r.s0,4)+'^exp('+f(r.lp,4)+') = '+pct(r.unc)+'</div></li>'+
+      '<li><b>Hiệu chỉnh theo vùng</b> ('+regName($("s2-reg"))+'; hệ số k₁ = '+f(r.k[0],4)+', k₂ = '+f(r.k[1],4)+'):<div class="formula">nguy cơ = 1 − exp(−exp(k₁ + k₂ × ln(−ln(1 − nguy cơ₀))))\n        = '+pct(r.risk)+'</div></li>'+
+      '<li><b>Phân tầng</b> theo ngưỡng của nhóm tuổi.'+thrTable(age)+'</li></ol>';
+  }
+
+  /* ---------- SCORE2-OP ---------- */
+  function calcOP(){
+    var sex=radio("op-sex"), age=num("op-age"), smk=chk("op-smk"), dm=chk("op-dm"), sbp=num("op-sbp"), tc=cholMmol("op","op-tc"), hdl=cholMmol("op","op-hdl"), reg=$("op-reg").value;
+    var el=$("r-op"), lbl="Nguy cơ biến cố tim mạch 10 năm";
+    if(!sex||[age,sbp,tc,hdl].some(function(v){return v===null;})){ resultBox(el,{lbl:lbl,empty:"Nhập giới, tuổi, huyết áp tâm thu, cholesterol toàn phần và HDL-C."}); $("m-op").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    if(age<70){ resultBox(el,{lbl:lbl,err:"SCORE2-OP dùng cho ≥70 tuổi. Dưới 70 tuổi dùng SCORE2 hoặc SCORE2-Diabetes."}); $("m-op").innerHTML=""; return; }
+    if([sbp,tc,hdl].some(function(v){return v===null||v<=0;})){ resultBox(el,{lbl:lbl,err:"Các giá trị phải lớn hơn 0."}); $("m-op").innerHTML=""; return; }
+    var r=score2op(sex,age,smk,dm,sbp,tc,hdl,reg), c=esc21(age,r.risk);
+    var warn = age>89 ? '<div class="warnbox">Mô hình được xây dựng chủ yếu đến 89 tuổi; kết quả trên tuổi này kém tin cậy.</div>' : '';
+    resultBox(el,{lbl:lbl+" · "+regName($("op-reg")),big:pct(r.risk),cat:c.cat,col:c.col,msg:c.msg,
+      scale:scaleBar(c.c,["var(--ok)","var(--warn)","var(--bad)"],Math.max(30,Math.ceil(r.risk*100/10)*10),r.risk*100), extra:warn});
+    var x=r.x;
+    $("m-op").innerHTML='<ol class="steps">'+
+      '<li><b>Chuẩn hoá biến số</b> (khác SCORE2: không chia, tâm tại 73 tuổi, HA 150, HDL 1,4).<div class="formula">cage  = tuổi − 73        = '+f(x.cage,1)+'\ncsbp  = HATT − 150       = '+f(x.csbp,1)+'\nctc   = cholesterol TP − 6 = '+f(x.ctc,3)+'\nchdl  = HDL-C − 1,4      = '+f(x.chdl,3)+'\nhút thuốc = '+smk+' · ĐTĐ = '+dm+'</div></li>'+
+      '<li><b>Tổng tuyến tính LP</b> (hệ số theo giới '+(sex==="M"?"nam":"nữ")+'):'+termsTable(r.terms,r.lp)+'</li>'+
+      '<li><b>Nguy cơ chưa hiệu chỉnh</b>, trừ LP trung bình của quần thể xây dựng (= '+f(r.mean,4)+'):<div class="formula">nguy cơ₀ = 1 − S₀^exp(LP − LP̄) = 1 − '+f(r.s0,4)+'^exp('+f(r.lp,4)+' − '+f(r.mean,4)+') = '+pct(r.unc)+'</div></li>'+
+      '<li><b>Hiệu chỉnh theo vùng</b> (k₁ = '+f(r.k[0],2)+', k₂ = '+f(r.k[1],2)+'):<div class="formula">nguy cơ = 1 − exp(−exp(k₁ + k₂ × ln(−ln(1 − nguy cơ₀)))) = '+pct(r.risk)+'</div></li>'+
+      '<li><b>Phân tầng</b> theo ngưỡng ≥70 tuổi.'+thrTable(age)+'</li></ol>';
+  }
+
+  /* ---------- SCORE2-Diabetes ---------- */
+  function a1cMmol(){ var v=num("dm-a1c"); if(v===null) return null; return a1cUnit==="pct" ? (v-2.152)*10.929 : v; }
+  function updCr(){
+    var sex=radio("dm-sex"), age=num("dm-age"), cr=num("dm-cr");
+    if(!sex||age===null||cr===null||cr<=0){ $("dm-cr-out").textContent="Nhập giới, tuổi và creatinin."; return null; }
+    var e=ckdepi2009(sex,age,cr); $("dm-cr-out").innerHTML="eGFR ≈ <b>"+f(e,0)+"</b> mL/ph/1,73 m²"; return e;
+  }
+  function calcDM(){
+    var sex=radio("dm-sex"), age=num("dm-age"), smk=chk("dm-smk"), sbp=num("dm-sbp"), tc=cholMmol("dm","dm-tc"), hdl=cholMmol("dm","dm-hdl"),
+        agd=num("dm-agd"), a1c=a1cMmol(), egfr=num("dm-egfr"), reg=$("dm-reg").value;
+    if(!$("dm-egfr-help").hidden) updCr();
+    var el=$("r-dm"), lbl="Nguy cơ biến cố tim mạch 10 năm";
+    if(!sex||[age,sbp,tc,hdl,agd,a1c,egfr].some(function(v){return v===null;})){ resultBox(el,{lbl:lbl,empty:"Nhập giới, tuổi, tuổi lúc chẩn đoán ĐTĐ, huyết áp tâm thu, cholesterol toàn phần, HDL-C, HbA1c và eGFR."}); $("m-dm").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    if(age<40||age>=70){ resultBox(el,{lbl:lbl,err:"SCORE2-Diabetes dùng cho 40–69 tuổi. Từ 70 tuổi dùng SCORE2-OP (có biến đái tháo đường)."}); $("m-dm").innerHTML=""; return; }
+    if([sbp,tc,hdl,agd,a1c,egfr].some(function(v){return v===null||v<=0;})){ resultBox(el,{lbl:lbl,err:"Các giá trị phải lớn hơn 0."}); $("m-dm").innerHTML=""; return; }
+    if(agd>age){ resultBox(el,{lbl:lbl,err:"Tuổi lúc chẩn đoán ĐTĐ không thể lớn hơn tuổi hiện tại."}); $("m-dm").innerHTML=""; return; }
+    var r=score2dm(sex,age,smk,sbp,tc,hdl,agd,a1c,egfr,reg), p=r.risk*100, c;
+    if(p<5) c={cat:"Thấp",col:COL.ok}; else if(p<10) c={cat:"Trung bình",col:COL.warn}; else if(p<20) c={cat:"Cao",col:COL.bad}; else c={cat:"Rất cao",col:COL.crit};
+    var tod = egfr<45 ? '<div class="warnbox">eGFR &lt;45 là <b>tổn thương cơ quan đích nặng</b>: bệnh nhân thuộc nhóm nguy cơ rất cao, không cần dùng SCORE2-Diabetes.</div>' :
+              (egfr<60 ? '<div class="warnbox">eGFR 45–59: nếu kèm albumin niệu (UACR ≥30 mg/g) thì là tổn thương cơ quan đích nặng → nguy cơ rất cao.</div>' : '');
+    resultBox(el,{lbl:lbl+" · "+regName($("dm-reg")),big:pct(r.risk),cat:"Nguy cơ "+c.cat.toLowerCase(),col:c.col,
+      msg:"Phân tầng theo ESC 2023 Đái tháo đường: thấp &lt;5% · trung bình 5–&lt;10% · cao 10–&lt;20% · rất cao ≥20%.",
+      scale:scaleBar([5,10,20],["var(--ok)","var(--warn)","var(--bad)","var(--crit)"],Math.max(40,Math.ceil(p/10)*10),p), extra:tod});
+    var x=r.x;
+    $("m-dm").innerHTML='<ol class="steps">'+
+      '<li><b>Chuẩn hoá biến số.</b> HbA1c đổi sang mmol/mol (IFCC = (% − 2,152) × 10,929); eGFR lấy logarit tự nhiên.<div class="formula">cage   = (tuổi − 60) / 5               = '+f(x.cage,3)+'\ncsbp   = (HATT − 120) / 20              = '+f(x.csbp,3)+'\nctc    = cholesterol TP − 6            = '+f(x.ctc,3)+'\nchdl   = (HDL-C − 1,3) / 0,5            = '+f(x.chdl,3)+'\ncagd   = (tuổi chẩn đoán ĐTĐ − 50) / 5    = '+f(x.cagd,3)+'\nca1c   = (HbA1c '+f(a1c,1)+' − 31) / 9,34      = '+f(x.ca1c,3)+'\ncegfr  = (ln eGFR − 4,5) / 0,15         = '+f(x.cegfr,3)+'</div></li>'+
+      '<li><b>Tổng tuyến tính LP</b>: các biến SCORE2 (hệ số đã điều chỉnh cho người ĐTĐ) cộng các biến riêng của ĐTĐ.'+termsTable(r.terms,r.lp)+'</li>'+
+      '<li><b>Nguy cơ chưa hiệu chỉnh</b> (S₀ = '+f(r.s0,4)+'):<div class="formula">nguy cơ₀ = 1 − S₀^exp(LP) = '+pct(r.unc)+'</div></li>'+
+      '<li><b>Hiệu chỉnh theo vùng</b> bằng hệ số của SCORE2 (k₁ = '+f(r.k[0],4)+', k₂ = '+f(r.k[1],4)+'):<div class="formula">nguy cơ = 1 − exp(−exp(k₁ + k₂ × ln(−ln(1 − nguy cơ₀)))) = '+pct(r.risk)+'</div></li>'+
+      '<li><b>Phân tầng</b>: thấp &lt;5% · trung bình 5–&lt;10% · cao 10–&lt;20% · rất cao ≥20%. Kiểm tra: ví dụ của bài báo gốc (nam 60 tuổi, không hút thuốc, HA 140, TC 5,5, HDL 1,3, chẩn đoán ĐTĐ lúc 60 tuổi, HbA1c 50 mmol/mol, eGFR 90, vùng trung bình) cho 11,0%, trang này tính ra đúng 11,0%.</li></ol>';
+  }
+
+  /* ---------- unit toggles ---------- */
+  document.querySelectorAll(".seg[data-unit]").forEach(function(seg){
+    var key=seg.dataset.unit;
+    seg.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click",function(){
+        var u=b.dataset.u; if(units[key]===u) return;
+        var ids=[key+"-tc",key+"-hdl"];
+        ids.forEach(function(id){ var v=num(id); if(v!==null){ $(id).value = u==="mg" ? Math.round(v*MGCHOL) : (Math.round(v/MGCHOL*100)/100); } $(id).step = u==="mg"?"1":"0.1"; });
+        units[key]=u;
+        seg.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false");});
+        seg.closest("fieldset").querySelectorAll(".u-chol").forEach(function(s){s.textContent = u==="mg"?"mg/dL":"mmol/L";});
+        runAll();
+      });
+    });
+  });
+  document.querySelectorAll(".seg[data-a1c]").forEach(function(seg){
+    seg.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click",function(){
+        var u=b.dataset.u; if(a1cUnit===u) return;
+        var v=num("dm-a1c");
+        if(v!==null){ $("dm-a1c").value = u==="mmol" ? Math.round((v-2.152)*10.929) : (Math.round((v/10.929+2.152)*10)/10); }
+        $("dm-a1c").step = u==="mmol"?"1":"0.1";
+        a1cUnit=u; $("u-a1c").textContent = u==="mmol"?"mmol/mol":"%";
+        seg.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false");});
+        runAll();
+      });
+    });
+  });
+  $("dm-egfr-toggle").addEventListener("click",function(){
+    var h=$("dm-egfr-help"); h.hidden=!h.hidden; this.setAttribute("aria-expanded", String(!h.hidden)); if(!h.hidden) updCr();
+  });
+  $("dm-cr-use").addEventListener("click",function(){ var e=updCr(); if(e){ $("dm-egfr").value=Math.round(e); calcDM(); } });
+
+
+  /* ---------- creatinine unit ---------- */
+  var crUnit={eg:"umol",gr:"umol"};
+  function crMg(key,id){ var v=num(id); if(v===null) return null; return crUnit[key]==="umol" ? v/88.4 : v; }
+  document.querySelectorAll(".seg[data-cr]").forEach(function(seg){
+    var key=seg.dataset.cr;
+    seg.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click",function(){
+        var u=b.dataset.u; if(crUnit[key]===u) return;
+        var id=key+"-cr", v=num(id);
+        if(v!==null){ $(id).value = u==="mg" ? (Math.round(v/88.4*100)/100) : Math.round(v*88.4); }
+        $(id).step = u==="mg"?"0.01":"1";
+        crUnit[key]=u;
+        seg.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false");});
+        $("p-"+(key==="eg"?"egfr":"grace")).querySelectorAll(".u-cr").forEach(function(s){s.textContent = u==="mg"?"mg/dL":"µmol/L";});
+        runAll();
+      });
+    });
+  });
+
+  /* ---------- eGFR ---------- */
+  var GSTAGE={G1:"Bình thường hoặc cao",G2:"Giảm nhẹ",G3a:"Giảm nhẹ–vừa",G3b:"Giảm vừa–nặng",G4:"Giảm nặng",G5:"Suy thận"};
+  function gCol(g){ return {G1:"var(--ok)",G2:"var(--ok)",G3a:"var(--warn)",G3b:"var(--warn)",G4:"var(--bad)",G5:"var(--crit)"}[g]; }
+  function calcEG(){
+    var sex=radio("eg-sex"), age=num("eg-age"), scr=crMg("eg","eg-cr"), wt=num("eg-wt"), ht=num("eg-ht");
+    var el=$("r-eg"), lbl="Độ thanh thải creatinin (Cockcroft–Gault)";
+    var miss=[]; if(!sex) miss.push("giới"); if(age===null) miss.push("tuổi"); if(wt===null) miss.push("cân nặng"); if(scr===null) miss.push("creatinin");
+    if(miss.length){ resultBox(el,{lbl:lbl,empty:"Chọn hoặc nhập: "+miss.join(", ")+"."}); $("m-eg").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    if(age<18){ resultBox(el,{lbl:lbl,err:"Các công thức này dành cho người ≥18 tuổi."}); $("m-eg").innerHTML=""; return; }
+    if(scr<=0||wt<=0){ resultBox(el,{lbl:lbl,err:"Creatinin và cân nặng phải lớn hơn 0."}); $("m-eg").innerHTML=""; return; }
+    var e21=egfrCkdepi2021(sex,age,scr), md=egfrMdrd(sex,age,scr), g=kdigoG(e21), cg=crclCG(sex,age,wt,scr);
+    var cgAdj=null, ibw=null, bmi=null, bsa=null;
+    if(ht!==null && ht>0){
+      bmi=wt/Math.pow(ht/100,2); bsa=Math.sqrt(ht*wt/3600); ibw=ibwDevine(sex,ht);
+      if(bmi>=30 && wt>ibw){ cgAdj=crclCG(sex,age,ibw+0.4*(wt-ibw),scr); }
+    }
+    var cgCol = cg<15?"var(--crit)":(cg<30?"var(--bad)":(cg<50?"var(--warn)":"var(--ok)"));
+    var cgCat = cg<15?"CrCl <15 mL/ph":(cg<30?"CrCl 15–29 mL/ph":(cg<50?"CrCl 30–49 mL/ph":"CrCl ≥50 mL/ph"));
+    var rows='<table class="eg-tab"><tbody>'+
+      '<tr><td>Cockcroft–Gault</td><td class="n"><b>'+f(cg,0)+'</b></td><td class="u">mL/ph</td><td class="u">CrCl</td></tr>'+
+      (cgAdj!==null?'<tr><td>CG, cân nặng hiệu chỉnh</td><td class="n">'+f(cgAdj,0)+'</td><td class="u">mL/ph</td><td class="u">BMI ≥30</td></tr>':'')+
+      '<tr><td>CKD-EPI 2021</td><td class="n">'+f(e21,0)+'</td><td class="u">mL/ph/1,73 m²</td><td><span class="gtag" style="background:'+gCol(g)+'">'+g+'</span></td></tr>'+
+      '<tr><td>MDRD</td><td class="n">'+f(md,0)+'</td><td class="u">mL/ph/1,73 m²</td><td><span class="gtag" style="background:'+gCol(kdigoG(md))+'">'+kdigoG(md)+'</span></td></tr>'+
+      (bsa!==null?'<tr><td>CKD-EPI 2021 không chuẩn hoá</td><td class="n">'+f(e21*bsa/1.73,0)+'</td><td class="u">mL/ph</td><td class="u">BSA '+f(bsa,2)+' m²</td></tr>':'')+
+      '</tbody></table>';
+    el.style.setProperty("--rc", cgCol);
+    el.innerHTML='<div class="lbl">'+lbl+'</div><div class="big">'+f(cg,0)+'<span class="unit"> mL/ph</span></div><span class="cat">'+cgCat+'</span>'+
+      '<div class="msg">Giai đoạn GFR theo KDIGO (CKD-EPI 2021): <b>'+g+'</b>, '+GSTAGE[g].toLowerCase()+'.</div>'+rows+
+      (cg<e21*0.8 ? '<div class="warnbox">CrCl Cockcroft–Gault thấp hơn rõ so với eGFR. Khi chỉnh liều DOAC và thuốc thải qua thận, dùng CrCl.</div>':'');
+    var sc=f(scr,2), sexF = sex==="W";
+    var k=sexF?"0,7":"0,9", a21=sexF?"−0,241":"−0,302";
+    var gt='<div class="tbl"><table><thead><tr><th>Giai đoạn</th><th>eGFR (mL/ph/1,73 m²)</th><th>Mô tả</th></tr></thead><tbody>'+
+      [["G1","≥90"],["G2","60–89"],["G3a","45–59"],["G3b","30–44"],["G4","15–29"],["G5","&lt;15"]].map(function(r){return '<tr'+(r[0]===g?' style="font-weight:700"':'')+'><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+GSTAGE[r[0]]+'</td></tr>';}).join("")+'</tbody></table></div>';
+    $("m-eg").innerHTML='<ol class="steps">'+
+      '<li><b>Đổi creatinin sang mg/dL</b> (µmol/L ÷ 88,4): Scr = <b>'+sc+'</b> mg/dL.</li>'+
+      '<li><b>Cockcroft–Gault</b><div class="formula">CrCl = (140 − tuổi) × cân nặng'+(sexF?' × 0,85':'')+' / (72 × Scr)\n     = (140 − '+age+') × '+f(wt,1)+(sexF?' × 0,85':'')+' / (72 × '+sc+') = '+f(cg,1)+' mL/ph</div>'+
+        (ibw!==null?'<p class="note">BMI '+f(bmi,1)+' kg/m² · cân nặng lý tưởng (Devine) '+f(ibw,1)+' kg · BSA (Mosteller) '+f(bsa,2)+' m². Khi BMI ≥30: cân nặng hiệu chỉnh = lý tưởng + 0,4 × (thực − lý tưởng).</p>':'<p class="note">Nhập thêm chiều cao để tính cân nặng hiệu chỉnh khi béo phì.</p>')+'</li>'+
+      '<li><b>CKD-EPI 2021</b> (κ = '+k+', α = '+a21+')<div class="formula">eGFR = 142 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^−1,200 × 0,9938^tuổi'+(sexF?' × 1,012':'')+'\n     = '+f(e21,1)+' mL/ph/1,73 m²</div></li>'+
+      '<li><b>MDRD (IDMS)</b><div class="formula">eGFR = 175 × Scr^−1,154 × tuổi^−0,203'+(sexF?' × 0,742':'')+'\n     = 175 × '+sc+'^−1,154 × '+age+'^−0,203'+(sexF?' × 0,742':'')+' = '+f(md,1)+' mL/ph/1,73 m²</div></li>'+
+      '<li><b>Phân giai đoạn GFR theo KDIGO</b> (dựa trên CKD-EPI 2021). Chẩn đoán bệnh thận mạn cần bất thường kéo dài &gt;3 tháng và đánh giá thêm albumin niệu.'+gt+'</li></ol>';
+  }
+
+  /* ---------- CHA2DS2-VA ---------- */
+  function calcCH(){
+    var age=radio("ch-age");
+    var items=[["ch-c","C","Suy tim",1],["ch-h","H","Tăng huyết áp",1],[null,"A₂ / A","Tuổi",age===null?0:+age],["ch-d","D","Đái tháo đường",1],["ch-s","S₂","Đột quỵ, TIA, thuyên tắc",2],["ch-v","V","Bệnh mạch máu",1]];
+    var el=$("r-ch"), lbl="Điểm CHA₂DS₂-VA";
+    if(age===null){ resultBox(el,{lbl:lbl,empty:"Chọn nhóm tuổi và đánh dấu các tiêu chí có ở bệnh nhân."}); $("m-ch").innerHTML=pointTable(items.map(function(i){return [i[1],i[2],i[0]?i[3]:"0–2",false];}),null); return; }
+    var s=0, rows=[];
+    items.forEach(function(i){ var on = i[0]? $(i[0]).checked : +age>0; var p = i[0]? (on?i[3]:0) : +age; s+=p; rows.push([i[1], i[0]?i[2]:(age==="2"?"Tuổi ≥75":(age==="1"?"Tuổi 65–74":"Tuổi <65")), p, on]); });
+    var o;
+    if(s===0) o={cat:"Nguy cơ thấp",col:"var(--ok)",msg:"Chưa có chỉ định chống đông dựa trên điểm. Đánh giá lại nguy cơ định kỳ vì điểm tăng theo tuổi và bệnh kèm."};
+    else if(s===1) o={cat:"Nguy cơ tăng",col:"var(--warn)",msg:"<b>Nên cân nhắc</b> chống đông đường uống (ESC 2024, IIa C), có tính đến mong muốn của bệnh nhân."};
+    else o={cat:"Nguy cơ tăng",col:"var(--bad)",msg:"<b>Khuyến cáo</b> chống đông đường uống (ESC 2024, I C). Ưu tiên DOAC hơn VKA, trừ van tim cơ học hoặc hẹp van hai lá vừa–nặng."};
+    resultBox(el,{lbl:lbl,big:s+'<span class="unit"> / 8 điểm</span>',cat:o.cat,col:o.col,msg:o.msg,
+      extra:'<p class="note">Không dùng thuốc chống kết tập tiểu cầu thay cho chống đông để phòng đột quỵ.</p>'});
+    $("m-ch").innerHTML=pointTable(rows,s)+'<p class="note">Ngưỡng ESC 2024: 0 điểm → không chỉ định dựa trên điểm · 1 điểm → nên cân nhắc (IIa) · ≥2 điểm → khuyến cáo (I).</p>';
+  }
+  function pointTable(rows,total){
+    var h='<div class="tbl"><table><thead><tr><th>Ký hiệu</th><th>Tiêu chí</th><th class="n">Điểm</th></tr></thead><tbody>';
+    rows.forEach(function(r){ h+='<tr'+(r[3]?' class="on"':'')+'><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="n">'+r[2]+'</td></tr>'; });
+    if(total!==null) h+='<tr class="tot"><td colspan="2">Tổng</td><td class="n">'+total+'</td></tr>';
+    return h+'</tbody></table></div>';
+  }
+
+  /* ---------- HAS-BLED ---------- */
+  function calcHB(){
+    var items=[["hb-h","H","Tăng huyết áp không kiểm soát"],["hb-ar","A","Bất thường chức năng thận"],["hb-al","A","Bất thường chức năng gan"],["hb-s","S","Đột quỵ"],["hb-b","B","Chảy máu hoặc cơ địa chảy máu"],["hb-l","L","INR dao động"],["hb-e","E","Tuổi >65"],["hb-dd","D","Thuốc chống kết tập tiểu cầu/NSAID"],["hb-da","D","Rượu ≥8 đơn vị/tuần"]];
+    var s=0, rows=[], mod=[];
+    items.forEach(function(i){ var on=$(i[0]).checked; if(on){ s++; if($(i[0]).dataset.m) mod.push(i[2]); } rows.push([i[0]==="hb-ar"||i[0]==="hb-al"?"A":i[1], i[2], on?1:0, on]); });
+    var hi = s>=3;
+    var msg = hi ? "<b>Nguy cơ chảy máu cao.</b> Theo dõi sát hơn, xử trí yếu tố có thể thay đổi. Không phải lý do để không dùng hoặc ngừng chống đông (ESC 2024, III B)."
+                 : "Nguy cơ chảy máu không cao. Vẫn rà soát và xử trí yếu tố có thể thay đổi (ESC 2024, I B).";
+    var extra = mod.length ? '<div class="warnbox"><b>Cần xử trí:</b> '+mod.join("; ")+'.</div>' : '';
+    resultBox($("r-hb"),{lbl:"Điểm HAS-BLED",big:s+'<span class="unit"> / 9 điểm</span>',cat:hi?"Nguy cơ cao (≥3)":"Thấp – trung bình (0–2)",col:hi?"var(--bad)":"var(--ok)",msg:msg,extra:extra});
+    $("m-hb").innerHTML=pointTable(rows,s)+'<p class="note">Mỗi tiêu chí 1 điểm, tối đa 9. Thận và gan tính riêng; thuốc và rượu tính riêng. ≥3 điểm là nguy cơ chảy máu cao.</p>';
+  }
+
+  /* ---------- GRACE ---------- */
+  function calcGR(){
+    var age=num("gr-age"), hr=num("gr-hr"), sbp=num("gr-sbp"), cr=crMg("gr","gr-cr"), kil=radio("gr-kil");
+    var el=$("r-gr"), lbl="Điểm GRACE (tử vong trong viện)";
+    var miss=[]; if(age===null) miss.push("tuổi"); if(hr===null) miss.push("tần số tim"); if(sbp===null) miss.push("HA tâm thu"); if(cr===null) miss.push("creatinin"); if(!kil) miss.push("Killip");
+    if(miss.length){ resultBox(el,{lbl:lbl,empty:"Chọn hoặc nhập: "+miss.join(", ")+"."}); $("m-gr").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    var arr=chk("gr-arr"), st=chk("gr-st"), enz=chk("gr-enz");
+    var p=gracePts(age,hr,sbp,cr,+kil,arr,st,enz), pr=graceProb(p.total), t=p.total;
+    var c = t<=108 ? {cat:"Thấp (≤108)",col:"var(--ok)"} : (t<=140 ? {cat:"Trung bình (109–140)",col:"var(--warn)"} : {cat:"Cao (>140)",col:"var(--bad)"});
+    var msg = t>140 ? "Ở NSTE-ACS, GRACE &gt;140 là tiêu chí nguy cơ cao: <b>nên cân nhắc chiến lược xâm lấn sớm trong 24 giờ</b> (ESC 2023, IIa A)."
+                    : "Phân nhóm theo nguy cơ tử vong trong viện ở NSTE-ACS. Quyết định thời điểm can thiệp dựa trên toàn bộ tiêu chí nguy cơ.";
+    var vh = (kil==="4"||arr) ? '<div class="warnbox"><b>Có tiêu chí nguy cơ rất cao</b> (sốc tim hoặc ngừng tim): chụp mạch vành xâm lấn ngay (&lt;2 giờ) ở NSTE-ACS.</div>' : '';
+    resultBox(el,{lbl:lbl,big:t+'<span class="unit"> điểm</span>',cat:c.cat,col:c.col,
+      msg:'Xác suất tử vong trong viện <b>'+pr.sign+' '+f(pr.p,1)+'%</b>. '+msg,
+      scale:scaleBar([108,140],["var(--ok)","var(--warn)","var(--bad)"],Math.max(250,Math.ceil(t/10)*10),t).replace(/%<\/span>/g,"</span>"), extra:vh});
+    var crShow = f(cr,2)+" mg/dL"+(crUnit.gr==="umol"?" ("+f(num("gr-cr"),0)+" µmol/L ÷ 88,4)":"");
+    var rows=[["Tuổi",age+" năm",p.age],["Tần số tim",hr+" lần/ph",p.hr],["HA tâm thu",sbp+" mmHg",p.sbp],["Creatinin",crShow,p.cr],["Killip","độ "+["I","II","III","IV"][+kil-1],p.killip],["Ngừng tim lúc nhập viện",arr?"có":"không",p.arrest],["Biến đổi ST",st?"có":"không",p.st],["Tăng men tim",enz?"có":"không",p.enz]];
+    var h='<ol class="steps"><li><b>Quy đổi từng biến ra điểm</b> theo bảng của Granger 2003:<div class="tbl"><table><thead><tr><th>Biến</th><th>Giá trị</th><th class="n">Điểm</th></tr></thead><tbody>';
+    rows.forEach(function(r){ h+='<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td class="n">'+r[2]+'</td></tr>'; });
+    h+='<tr class="tot"><td colspan="2">Tổng</td><td class="n">'+t+'</td></tr></tbody></table></div></li>';
+    h+='<li><b>Tra xác suất tử vong trong viện</b> theo tổng điểm (nội suy tuyến tính giữa các mốc):<div class="tbl"><table class="gtab"><tbody><tr><th>Điểm</th>'+GRACE_TAB.map(function(x,i){return '<td>'+(i===0?'≤':(i===GRACE_TAB.length-1?'≥':''))+x[0]+'</td>';}).join("")+'</tr><tr><th>%</th>'+GRACE_TAB.map(function(x,i){return '<td>'+(i===0?'≤':(i===GRACE_TAB.length-1?'≥':''))+String(x[1]).replace(".",",")+'</td>';}).join("")+'</tr></tbody></table></div></li>';
+    h+='<li><b>Phân nhóm</b> (NSTE-ACS, tử vong trong viện): thấp ≤108 (&lt;1%) · trung bình 109–140 (1–3%) · cao &gt;140 (&gt;3%).</li>';
+    h+='<li><b>Bảng điểm đầy đủ:</b><div class="tbl"><table><tbody>'+
+      '<tr><th>Tuổi</th><td>&lt;30: 0 · 30–39: 8 · 40–49: 25 · 50–59: 41 · 60–69: 58 · 70–79: 75 · 80–89: 91 · ≥90: 100</td></tr>'+
+      '<tr><th>Tần số tim</th><td>&lt;50: 0 · 50–69: 3 · 70–89: 9 · 90–109: 15 · 110–149: 24 · 150–199: 38 · ≥200: 46</td></tr>'+
+      '<tr><th>HA tâm thu</th><td>&lt;80: 58 · 80–99: 53 · 100–119: 43 · 120–139: 34 · 140–159: 24 · 160–199: 10 · ≥200: 0</td></tr>'+
+      '<tr><th>Creatinin (mg/dL)</th><td>&lt;0,40: 1 · 0,40–0,79: 4 · 0,80–1,19: 7 · 1,20–1,59: 10 · 1,60–1,99: 13 · 2,00–3,99: 21 · ≥4,00: 28</td></tr>'+
+      '<tr><th>Killip</th><td>I: 0 · II: 20 · III: 39 · IV: 59</td></tr>'+
+      '<tr><th>Khác</th><td>Ngừng tim lúc nhập viện: 39 · Biến đổi ST: 28 · Tăng men tim: 14</td></tr></tbody></table></div></li></ol>';
+    $("m-gr").innerHTML=h;
+  }
+
+  /* ---------- tile ordering ---------- */
+  var ORDER_KEY="tdtm_tile_order_v1";
+  var tilesBox=$("tiles"), DEFAULT_ORDER=Array.prototype.map.call(tilesBox.children,function(w){return w.dataset.k;});
+  function applyOrder(order){
+    var map={}; Array.prototype.forEach.call(tilesBox.children,function(w){map[w.dataset.k]=w;});
+    var seen={};
+    order.forEach(function(k){ if(map[k] && !seen[k]){ tilesBox.appendChild(map[k]); seen[k]=1; } });
+    DEFAULT_ORDER.forEach(function(k){ if(!seen[k]) tilesBox.appendChild(map[k]); });
+    updArrows();
+  }
+  function curOrder(){ return Array.prototype.map.call(tilesBox.children,function(w){return w.dataset.k;}); }
+  function saveOrder(){ try{ localStorage.setItem(ORDER_KEY, JSON.stringify(curOrder())); }catch(e){} }
+  function updArrows(){
+    var n=tilesBox.children.length;
+    Array.prototype.forEach.call(tilesBox.children,function(w,i){
+      w.querySelector("[data-mv='-1']").disabled = i===0;
+      w.querySelector("[data-mv='1']").disabled = i===n-1;
+      w.querySelector(".ord").textContent = i+1;
+    });
+  }
+  try{ var saved=JSON.parse(localStorage.getItem(ORDER_KEY)||"null"); if(Array.isArray(saved)) applyOrder(saved); else updArrows(); }catch(e){ updArrows(); }
+  var editing=false;
+  function setEdit(on){
+    editing=on; tilesBox.classList.toggle("editing",on);
+    $("sort-btn").setAttribute("aria-pressed",String(on)); $("sort-btn").textContent = on ? "✓ Xong" : "⇅ Sắp xếp";
+    $("sort-help").hidden=!on;
+    if(!on) saveOrder();
+  }
+  $("sort-btn").addEventListener("click",function(){ setEdit(!editing); });
+  tilesBox.addEventListener("click",function(e){
+    var mv=e.target.closest("[data-mv]"); if(!mv) return;
+    var w=mv.closest(".tw"), d=+mv.dataset.mv;
+    if(d<0 && w.previousElementSibling) tilesBox.insertBefore(w,w.previousElementSibling);
+    if(d>0 && w.nextElementSibling) tilesBox.insertBefore(w.nextElementSibling,w);
+    updArrows(); saveOrder(); mv.focus();
+  });
+  // kéo thả (chuột và cảm ứng)
+  var drag=null;
+  tilesBox.addEventListener("pointerdown",function(e){
+    if(!editing) return;
+    var w=e.target.closest(".tw"); if(!w || e.target.closest("[data-mv]")) return;
+    drag={w:w,id:e.pointerId}; w.classList.add("dragging"); w.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  tilesBox.addEventListener("pointermove",function(e){
+    if(!drag||e.pointerId!==drag.id) return;
+    var under=document.elementFromPoint(e.clientX,e.clientY), t=under&&under.closest(".tw");
+    if(!t||t===drag.w||t.parentNode!==tilesBox) return;
+    var r=t.getBoundingClientRect(), before = (e.clientY < r.top + r.height/2) || (Math.abs(e.clientY-(r.top+r.height/2))<r.height/2 && e.clientX < r.left + r.width/2);
+    var kids=Array.prototype.slice.call(tilesBox.children), di=kids.indexOf(drag.w), ti=kids.indexOf(t);
+    tilesBox.insertBefore(drag.w, ti>di ? t.nextElementSibling : t);
+    updArrows();
+  });
+  function endDrag(){ if(!drag) return; drag.w.classList.remove("dragging"); drag=null; saveOrder(); }
+  tilesBox.addEventListener("pointerup",endDrag); tilesBox.addEventListener("pointercancel",endDrag);
+
+  /* ---------- Child-Pugh ---------- */
+  var biliUnit="umol";
+  document.querySelectorAll(".seg[data-bili]").forEach(function(seg){
+    seg.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click",function(){
+        var u=b.dataset.u; if(biliUnit===u) return;
+        var v=num("cp-bili");
+        if(v!==null){ $("cp-bili").value = u==="mg" ? (Math.round(v/17.1*10)/10) : Math.round(v*17.1); }
+        $("cp-bili").step = u==="mg"?"0.1":"1";
+        biliUnit=u; $("u-bili").textContent = u==="mg"?"mg/dL":"µmol/L";
+        seg.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false");});
+        calcCP();
+      });
+    });
+  });
+  function calcCP(){
+    var bv=num("cp-bili"), alb=num("cp-alb"), inr=num("cp-inr"), asc=radio("cp-asc"), enc=radio("cp-enc"), chol=$("cp-chol").checked;
+    var el=$("r-cp"), lbl="Điểm Child-Pugh";
+    var miss=[]; if(bv===null) miss.push("bilirubin"); if(alb===null) miss.push("albumin"); if(inr===null) miss.push("INR"); if(!asc) miss.push("cổ trướng"); if(!enc) miss.push("bệnh não gan");
+    if(miss.length){ resultBox(el,{lbl:lbl,empty:"Chọn hoặc nhập: "+miss.join(", ")+"."}); $("m-cp").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    var bu = biliUnit==="mg" ? bv*17.1 : bv;
+    var cut = chol ? [68,170] : [34,50];
+    var pB = bu<cut[0]?1:(bu<=cut[1]?2:3);
+    var pA = alb>35?1:(alb>=28?2:3);
+    var pI = inr<1.7?1:(inr<=2.3?2:3);
+    var s = pB+pA+pI+(+asc)+(+enc);
+    var cls = s<=6?"A":(s<=9?"B":"C");
+    var info={A:{col:"var(--ok)",surv:"Sống còn khoảng 100% sau 1 năm, 85% sau 2 năm.",doac:"DOAC dùng được bình thường."},
+              B:{col:"var(--warn)",surv:"Sống còn khoảng 80% sau 1 năm, 60% sau 2 năm.",doac:"DOAC: dabigatran, apixaban, edoxaban dùng thận trọng; <b>không dùng rivaroxaban</b>."},
+              C:{col:"var(--bad)",surv:"Sống còn khoảng 45% sau 1 năm, 35% sau 2 năm.",doac:"<b>Chống chỉ định mọi DOAC.</b>"}}[cls];
+    resultBox(el,{lbl:lbl,big:s+'<span class="unit"> / 15 điểm</span>',cat:"Child-Pugh "+cls+(cls==="A"?" (5–6)":(cls==="B"?" (7–9)":" (10–15)")),col:info.col,
+      msg:info.surv, extra:'<div class="warnbox">'+info.doac+' (EHRA 2021)</div>'});
+    var bShow = biliUnit==="mg" ? f(bv,1)+" mg/dL = "+f(bu,0)+" µmol/L" : f(bu,0)+" µmol/L";
+    var ascT=["","không","nhẹ / kiểm soát được","vừa–nhiều / kháng trị"][+asc], encT=["","không","độ 1–2 / kiểm soát được","độ 3–4 / kháng trị"][+enc];
+    var bTh = chol ? "&lt;68 · 68–170 · &gt;170" : "&lt;34 · 34–50 · &gt;50";
+    var rows=[["Bilirubin",bShow,bTh+" µmol/L",pB],["Albumin",f(alb,0)+" g/L","&gt;35 · 28–35 · &lt;28 g/L",pA],["INR",f(inr,2),"&lt;1,7 · 1,7–2,3 · &gt;2,3",pI],["Cổ trướng",ascT,"không · nhẹ · vừa–nhiều",+asc],["Bệnh não gan",encT,"không · độ 1–2 · độ 3–4",+enc]];
+    var h='<ol class="steps"><li><b>Mỗi tiêu chí 1–3 điểm</b> theo ngưỡng:<div class="tbl"><table><thead><tr><th>Tiêu chí</th><th>Bệnh nhân</th><th>Ngưỡng 1 · 2 · 3 điểm</th><th class="n">Điểm</th></tr></thead><tbody>';
+    rows.forEach(function(r){ h+='<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="n">'+r[3]+'</td></tr>'; });
+    h+='<tr class="tot"><td colspan="3">Tổng</td><td class="n">'+s+'</td></tr></tbody></table></div>'+(chol?'<p class="note">Bệnh gan ứ mật: ngưỡng bilirubin 68 và 170 µmol/L (4 và 10 mg/dL).</p>':'')+'</li>';
+    h+='<li><b>Phân loại:</b> A 5–6 điểm (còn bù) · B 7–9 điểm (tổn thương chức năng đáng kể) · C 10–15 điểm (mất bù).</li>';
+    h+='<li><b>Liên quan tim mạch:</b> Child-Pugh B–C làm tăng nguy cơ chảy máu khi dùng chống đông (tiêu chí “A – gan” trong HAS-BLED); chỉnh liều hoặc tránh thuốc chuyển hoá qua gan.</li></ol>';
+    $("m-cp").innerHTML=h;
+  }
+
+  /* ---------- Geneva ---------- */
+  function calcGV(){
+    var hr=num("gv-hr"), el=$("r-gv"), lbl="Xác suất lâm sàng thuyên tắc phổi";
+    if(hr===null){ resultBox(el,{lbl:lbl,empty:"Nhập tần số tim và đánh dấu các tiêu chí có ở bệnh nhân."}); $("m-gv").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    var it=[["gv-age","Tuổi >65",1,1],["gv-prev","Tiền sử HKTMS hoặc thuyên tắc phổi",3,1],["gv-surg","Phẫu thuật hoặc gãy xương trong 1 tháng",2,1],["gv-ca","Ung thư đang hoạt động",2,1],["gv-pain","Đau một bên chi dưới",3,1],["gv-hemo","Ho ra máu",2,1],["gv-dvt","Đau dọc tĩnh mạch sâu và phù một bên",4,1]];
+    var r=0,s=0,rows=[];
+    it.forEach(function(i){ var on=$(i[0]).checked; if(on){r+=i[2]; s+=i[3];} rows.push([i[1],on?i[2]:0,on?i[3]:0,on]); });
+    var hrR = hr>=95?5:(hr>=75?3:0), hrS = hr>=95?2:(hr>=75?1:0);
+    r+=hrR; s+=hrS; rows.push(["Tần số tim "+hr+" lần/ph",hrR,hrS,hrR>0]);
+    var r3 = r<=3?"thấp":(r<=10?"trung bình":"cao"), r2 = r<=5?"ít khả năng":"nhiều khả năng";
+    var s3 = s<=1?"thấp":(s<=4?"trung bình":"cao"), s2 = s<=2?"ít khả năng":"nhiều khả năng";
+    var high = r>=11, mid = r>=4;
+    var col = high?"var(--bad)":(mid?"var(--warn)":"var(--ok)");
+    var todo = high ? "<b>Chụp CT mạch phổi.</b> Không dùng D-dimer để loại trừ khi xác suất lâm sàng cao (III A)."
+                            : "<b>Xét nghiệm D-dimer</b> (I A), ngưỡng theo tuổi nếu &gt;50 tuổi (tuổi × 10 µg/L) (IIa B). D-dimer âm tính: loại trừ thuyên tắc phổi, không cần điều trị. D-dimer dương tính: chụp CT mạch phổi.";
+    var tab='<table class="eg-tab"><tbody><tr><td>Geneva sửa đổi</td><td class="n"><b>'+r+'</b></td><td>xác suất '+r3+'</td><td>'+r2+'</td></tr><tr><td>Geneva đơn giản hoá</td><td class="n"><b>'+s+'</b></td><td>xác suất '+s3+'</td><td>'+s2+'</td></tr></tbody></table>';
+    resultBox(el,{lbl:lbl+" (Geneva sửa đổi)",big:r+'<span class="unit"> điểm</span>',cat:"Xác suất "+r3+" · thuyên tắc phổi "+r2,col:col,msg:"<b>Bước tiếp theo:</b> "+todo,extra:tab});
+    var h='<ol class="steps"><li><b>Cộng điểm</b> theo từng bản:<div class="tbl"><table><thead><tr><th>Tiêu chí</th><th class="n">Sửa đổi</th><th class="n">Đơn giản hoá</th></tr></thead><tbody>';
+    rows.forEach(function(x){ h+='<tr'+(x[3]?' class="on"':'')+'><td>'+x[0]+'</td><td class="n">'+x[1]+'</td><td class="n">'+x[2]+'</td></tr>'; });
+    h+='<tr class="tot"><td>Tổng</td><td class="n">'+r+'</td><td class="n">'+s+'</td></tr></tbody></table></div></li>';
+    h+='<li><b>Phân nhóm</b><div class="tbl"><table><thead><tr><th></th><th>3 mức</th><th>2 mức</th></tr></thead><tbody>'+
+       '<tr><td>Geneva sửa đổi</td><td>thấp 0–3 · trung bình 4–10 · cao ≥11</td><td>ít khả năng 0–5 · nhiều khả năng ≥6</td></tr>'+
+       '<tr><td>Geneva đơn giản hoá</td><td>thấp 0–1 · trung bình 2–4 · cao ≥5</td><td>ít khả năng 0–2 · nhiều khả năng ≥3</td></tr></tbody></table></div></li>';
+    h+='<li><b>Hướng xử trí (ESC 2019):</b> xác suất thấp hoặc trung bình (hoặc “ít khả năng” nếu dùng thang 2 mức) → D-dimer; xác suất cao → CT mạch phổi.</li></ol>';
+    $("m-gv").innerHTML=h;
+  }
+
+  /* ---------- PESI / sPESI ---------- */
+  function calcPS(){
+    var sex=radio("ps-sex"), age=num("ps-age"), hr=num("ps-hr"), sbp=num("ps-sbp"), rr=num("ps-rr"), t=num("ps-t"), sat=num("ps-sat");
+    var ca=chk("ps-ca"), hf=chk("ps-hf"), lung=chk("ps-lung"), ams=chk("ps-ams");
+    var el=$("r-ps"), lbl="PESI và sPESI";
+    var miss=[]; if(!sex) miss.push("giới"); if(age===null) miss.push("tuổi"); if(hr===null) miss.push("tần số tim"); if(sbp===null) miss.push("HA tâm thu"); if(rr===null) miss.push("tần số thở"); if(t===null) miss.push("nhiệt độ"); if(sat===null) miss.push("SaO₂");
+    if(miss.length){ resultBox(el,{lbl:lbl,empty:"Chọn hoặc nhập: "+miss.join(", ")+"."}); $("m-ps").innerHTML='<p class="note">Phần này sẽ hiện từng bước tính với số liệu của bệnh nhân khi nhập đủ chỉ số.</p>'; return; }
+    var P=[["Tuổi",age+" năm",age],["Giới nam",sex==="M"?"có":"không",sex==="M"?10:0],["Ung thư",ca?"có":"không",ca?30:0],["Suy tim mạn",hf?"có":"không",hf?10:0],["Bệnh phổi mạn",lung?"có":"không",lung?10:0],
+           ["Tần số tim ≥110",hr+" lần/ph",hr>=110?20:0],["HA tâm thu <100",sbp+" mmHg",sbp<100?30:0],["Tần số thở ≥30",rr+" lần/ph",rr>=30?20:0],["Nhiệt độ <36 °C",f(t,1)+" °C",t<36?20:0],["Thay đổi ý thức",ams?"có":"không",ams?60:0],["SaO₂ <90%",sat+"%",sat<90?20:0]];
+    var pesi=P.reduce(function(a,x){return a+x[2];},0);
+    var cls = pesi<=65?1:(pesi<=85?2:(pesi<=105?3:(pesi<=125?4:5)));
+    var mort=["","0–1,6%","1,7–3,5%","3,2–7,1%","4,0–11,4%","10,0–24,5%"][cls];
+    var S=[["Tuổi >80",age>80],["Ung thư",!!ca],["Suy tim mạn hoặc bệnh phổi mạn",!!(hf||lung)],["Tần số tim ≥110",hr>=110],["HA tâm thu <100",sbp<100],["SaO₂ <90%",sat<90]];
+    var sp=S.filter(function(x){return x[1];}).length;
+    // ESC 2019 risk
+    var unst=$("ps-unst").checked, rv=$("ps-rv").checked, tr=$("ps-trop").checked, sev = cls>=3 || sp>=1, risk;
+    if(unst) risk={t:"Nguy cơ cao",col:"var(--crit)",m:"Tiêu sợi huyết toàn thân (I B). Chống chỉ định hoặc thất bại: phẫu thuật lấy huyết khối hoặc can thiệp qua catheter. Heparin không phân đoạn."};
+    else if(sev && rv && tr) risk={t:"Nguy cơ trung bình–cao",col:"var(--bad)",m:"Chống đông đường tiêm, theo dõi sát trong 2–3 ngày đầu. Không tiêu sợi huyết thường quy (III B); tiêu sợi huyết cứu vãn nếu huyết động xấu đi (I B)."};
+    else if(sev || rv || tr) risk={t:"Nguy cơ trung bình–thấp",col:"var(--warn)",m:"Nhập viện, chống đông. Không tiêu sợi huyết thường quy (III B)."};
+    else risk={t:"Nguy cơ thấp",col:"var(--ok)",m:"Cân nhắc xuất viện sớm và điều trị ngoại trú nếu đảm bảo theo dõi và chống đông phù hợp (IIa A)."};
+    var Rc = ["","var(--ok)","var(--ok)","var(--warn)","var(--bad)","var(--crit)"][cls];
+    var tab='<table class="eg-tab"><tbody><tr><td>PESI</td><td class="n"><b>'+pesi+'</b></td><td>độ '+["","I","II","III","IV","V"][cls]+'</td><td>tử vong 30 ngày '+mort+'</td></tr><tr><td>sPESI</td><td class="n"><b>'+sp+'</b></td><td>'+(sp===0?"nguy cơ thấp":"nguy cơ không thấp")+'</td><td>tử vong 30 ngày '+(sp===0?"1,0%":"10,9%")+'</td></tr></tbody></table>';
+    el.style.setProperty("--rc", risk.col);
+    el.innerHTML='<div class="lbl">Phân tầng nguy cơ thuyên tắc phổi (ESC 2019)</div><div class="big" style="font-size:30px">'+risk.t+'</div>'+tab+'<div class="msg" style="margin-top:10px"><b>Xử trí:</b> '+risk.m+'</div>'+
+      (!unst&&!rv&&!tr&&sev?'':'')+(!unst && !(rv||tr) ? '<p class="note">Chưa đánh dấu rối loạn chức năng thất phải hay troponin: phân tầng giả định cả hai âm tính hoặc chưa đánh giá.</p>':'');
+    var h='<ol class="steps"><li><b>PESI</b>: tuổi (mỗi năm 1 điểm) cộng điểm các tiêu chí.<div class="tbl"><table><thead><tr><th>Tiêu chí</th><th>Bệnh nhân</th><th class="n">Điểm</th></tr></thead><tbody>';
+    P.forEach(function(x){ h+='<tr'+(x[2]>0&&x[0]!=="Tuổi"?' class="on"':'')+'><td>'+x[0]+'</td><td>'+x[1]+'</td><td class="n">'+x[2]+'</td></tr>'; });
+    h+='<tr class="tot"><td colspan="2">Tổng PESI</td><td class="n">'+pesi+'</td></tr></tbody></table></div>';
+    h+='<div class="tbl"><table><thead><tr><th>Độ</th><th>Điểm</th><th>Tử vong 30 ngày</th></tr></thead><tbody>'+
+      [["I","≤65","0–1,6%"],["II","66–85","1,7–3,5%"],["III","86–105","3,2–7,1%"],["IV","106–125","4,0–11,4%"],["V","&gt;125","10,0–24,5%"]].map(function(x,i){return '<tr'+(i+1===cls?' style="font-weight:700"':'')+'><td>'+x[0]+'</td><td>'+x[1]+'</td><td>'+x[2]+'</td></tr>';}).join("")+'</tbody></table></div></li>';
+    h+='<li><b>sPESI</b>: mỗi tiêu chí 1 điểm, tự lấy từ số liệu đã nhập.<div class="tbl"><table><tbody>';
+    S.forEach(function(x){ h+='<tr'+(x[1]?' class="on"':'')+'><td>'+x[0]+'</td><td class="n">'+(x[1]?1:0)+'</td></tr>'; });
+    h+='<tr class="tot"><td>Tổng sPESI</td><td class="n">'+sp+'</td></tr></tbody></table></div><p class="note">sPESI 0: tử vong 30 ngày 1,0% · sPESI ≥1: 10,9%.</p></li>';
+    h+='<li><b>Phân tầng nguy cơ ESC 2019</b><div class="tbl"><table><thead><tr><th>Nhóm</th><th>Sốc / tụt HA</th><th>PESI III–V hoặc sPESI ≥1</th><th>RLCN thất phải</th><th>Tăng troponin</th></tr></thead><tbody>'+
+      '<tr><td>Cao</td><td>có</td><td colspan="3">(không cần)</td></tr>'+
+      '<tr><td>Trung bình–cao</td><td>không</td><td>có</td><td colspan="2">cả hai</td></tr>'+
+      '<tr><td>Trung bình–thấp</td><td>không</td><td>có (hoặc không)</td><td colspan="2">một hoặc không có (nếu PESI I–II/sPESI 0: có ít nhất một)</td></tr>'+
+      '<tr><td>Thấp</td><td>không</td><td>không</td><td colspan="2">không (hoặc không đánh giá)</td></tr></tbody></table></div></li></ol>';
+    $("m-ps").innerHTML=h;
+  }
+
+  function runAll(){ calcRF(); calcS2(); calcOP(); calcDM(); calcEG(); calcCH(); calcHB(); calcGR(); calcCP(); calcGV(); calcPS(); }
+  document.querySelectorAll("[data-reset]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var panel=btn.closest(".panel"), form=panel.querySelector("form");
+      form.reset();
+      panel.querySelectorAll(".seg[data-unit]").forEach(function(seg){
+        units[seg.dataset.unit]="mmol";
+        seg.querySelectorAll("button").forEach(function(x,i){x.setAttribute("aria-pressed",i===0?"true":"false");});
+        seg.closest("fieldset").querySelectorAll(".u-chol").forEach(function(s){s.textContent="mmol/L";});
+        seg.closest("fieldset").querySelectorAll('input[type=number]').forEach(function(i){i.step="0.1";});
+      });
+      panel.querySelectorAll(".seg[data-a1c]").forEach(function(seg){
+        a1cUnit="pct"; $("u-a1c").textContent="%"; $("dm-a1c").step="0.1";
+        seg.querySelectorAll("button").forEach(function(x,i){x.setAttribute("aria-pressed",i===0?"true":"false");});
+      });
+      panel.querySelectorAll(".seg[data-cr]").forEach(function(seg){
+        crUnit[seg.dataset.cr]="umol";
+        seg.querySelectorAll("button").forEach(function(x,i){x.setAttribute("aria-pressed",i===0?"true":"false");});
+        panel.querySelectorAll(".u-cr").forEach(function(s){s.textContent="µmol/L";});
+        $(seg.dataset.cr+"-cr").step="1";
+      });
+      panel.querySelectorAll(".seg[data-bili]").forEach(function(seg){
+        biliUnit="umol"; $("u-bili").textContent="µmol/L"; $("cp-bili").step="1";
+        seg.querySelectorAll("button").forEach(function(x,i){x.setAttribute("aria-pressed",i===0?"true":"false");});
+      });
+      var help=panel.querySelector("#dm-egfr-help");
+      if(help){ help.hidden=true; $("dm-egfr-toggle").setAttribute("aria-expanded","false"); $("dm-cr-out").textContent=""; }
+      runAll();
+      window.scrollTo(0,0);
+      var first=form.querySelector("input"); if(first) first.focus({preventScroll:true});
+    });
+  });
+  [["f-rf",calcRF],["f-s2",calcS2],["f-op",calcOP],["f-dm",calcDM],["f-eg",calcEG],["f-ch",calcCH],["f-hb",calcHB],["f-gr",calcGR],["f-cp",calcCP],["f-gv",calcGV],["f-ps",calcPS]].forEach(function(p){
+    $(p[0]).addEventListener("input",p[1]); $(p[0]).addEventListener("change",p[1]);
+  });
+  runAll();
+  fromHash();
+})();
+</script>
+</body>
+</html>
