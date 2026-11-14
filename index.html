@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Thang điểm">
@@ -168,6 +168,8 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 footer[hidden]{display:none}
 footer{padding:10px 0 40px;font-size:13px;color:var(--muted)}
 footer p{margin:4px 0;max-width:95ch}
+html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (pointer:coarse){input[type=number],input[type=text],select,textarea{font-size:16px}}
 </style>
 </head>
 <body>
@@ -1413,5 +1415,6 @@ if (typeof module!=="undefined") Object.assign(module.exports,{egfrCkdepi2021:eg
   fromHash();
 })();
 </script>
+<script>document.addEventListener("gesturestart",function(e){e.preventDefault();},{passive:false});document.addEventListener("touchmove",function(e){if(e.touches&&e.touches.length>1)e.preventDefault();},{passive:false});</script>
 </body>
 </html>
